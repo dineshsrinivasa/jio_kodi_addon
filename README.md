@@ -9,44 +9,46 @@
 <h4 align="center">JioTV Kodi Add-on 2025</h4>
 
 <br>
-## **Update** 
-Fixed sony and other channels
 
 ## Disclaimer
 
 This plugin is not officially commissioned/supported by Jio. The trademark "Jio" is registered by "Reliance Corporate IT Park Limited (RCITPL)"
 
-## Steps
+## Installation Steps
 
-1. Install Kodi from here - https://mirrors.kodi.tv/nightlies/android/arm64-v8a/master/kodi-20240704-8642d8ca-master-arm64-v8a.apk
-2. Then disable auto updates in settings of addons
-3. Enable "Unknown sources"
+### Method 1: Install from Repository (Recommended)
 
-(Disable auto update in addon settings)
+1. Install Kodi on your Android device
+2. Enable "Unknown sources" in Settings > System > Add-ons
+3. Go to Settings > File manager > Add source
+4. Enter URL: `https://dineshsrinivasa.github.io/jio_kodi_addon/`
+5. Name it (e.g., "Dinesh Repo") and click OK
+6. Go back to Settings > Add-ons > Install from zip file
+7. Click the source name you saved > click `repository.dineshrepo/`
+8. Wait for "Repository installed" notification
+9. Go to Install from repository > Dinesh JioTV Repository > Video add-ons > JioTV
+10. Click Install
 
-4. Goto settings > File manager
+### Method 2: Direct Install from Zip
 
-5. Add source
+1. Download the `plugin.video.jiotv` folder as a zip file
+2. Transfer to your Android device
+3. In Kodi, go to Settings > Add-ons > Install from zip file
+4. Browse to the downloaded zip file
 
-https://kiranreddyrebel.github.io/
+## Configuration
 
-save with any name.
+1. Open JioTV addon > Configure > Login with your Jio credentials
+2. Setup IPTV: Settings > Add-ons > My add-ons > JioTV > Configure
+3. Enable M3U playlist generation and EPG setup
 
-6. Go back, click addons > install from zip
+## Troubleshooting
 
-7. Click that name you saved source.
+- If streams hang: Use Cache Cleanup in addon settings
+- If login fails: Try OTP login instead of password
+- Ensure inputstream.adaptive addon is installed
 
-8. Click repository.kiranreddyrebel.zip
+## Credits
 
-Once installed ,Exit kodi.
-
-
-9. Open kodi, settings > addons > install from repository
-
-10. Click kiranreddyrebel repository > Video addons > jioTV
-
-It will install jio plugin
-
-Rest you know what to do. Jio add-on>configure>setup IPTV etc etc.
-
-
+- Original addon by [kiranreddyrebel](https://github.com/kiranreddyrebel/plugin.video.jiotv)
+- Repository maintained by Dinesh
