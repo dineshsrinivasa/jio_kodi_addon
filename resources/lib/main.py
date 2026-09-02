@@ -40,6 +40,7 @@ from resources.lib.utils import (
     getCachedDictionary,
     cleanLocalCache,
     getFeatured,
+    cleanup_signals,
 )
 from resources.lib.constants import (
     GET_CHANNEL_URL,
@@ -419,7 +420,6 @@ def play(
     # Script.notify("showtime", showtime)
     # Script.notify("channel_id", channel_id)
     #headerszee = getZeeHeaders(host)   # zee headers
-    headerssony = getSonyHeaders() # sony headers
     sony_headers = getSonyHeaders()
     try:
         is_helper = inputstreamhelper.Helper("mpd", drm="com.widevine.alpha")
@@ -438,6 +438,9 @@ def play(
             rjson["end"] = end
             Script.log(str(rjson), lvl=Script.INFO)
         headers = getHeaders()
+        if not headers:
+            Script.notify("Login Error", "Session expired. Please login again")
+            return False
         headers["channelid"] = str(channel_id)
         headers["srno"] = str(uuid4()) if "srno" not in rjson else rjson["srno"]
         enableHost = Settings.get_boolean("enablehost")
@@ -462,10 +465,6 @@ def play(
     "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019",
     "5020", "5021", "5022","5023","5024","5025","5026"]):
 
-            
-
-            sony_headers = getSonyHeaders()
-            
             if channel_id in zee_channels:
                 if channel_id == "5016":
                     zee_channelid = "0-9-zeeanmolcinema"
@@ -489,14 +488,14 @@ def play(
                     zee_channelid = None
                      
                 cook=zeeCookie(zee_channelid)
+                if not cook:
+                    Script.notify("Zee Error", "Failed to get Zee channel cookie")
+                    return False
                 #getZeeHeaders(host)
                 headerszee=getZeeHeaders(host)
-                print("cookie zee: ", cook)
                 base_url = zee_channels[channel_id]
                 onlyUrl = f"{base_url}{cook}"
                 url = onlyUrl
-                print(cook)
-                print(url)
             
             
                 # Zee channels if else end
@@ -539,8 +538,6 @@ def play(
 
                 )#471 sab
 
-                print(res)
-
                 sonyheaders = sony_headers
 
                 sonyheaders["cookie"] = "__hdnea__" + res.json().get("result", "").split("__hdnea__")[-1]
@@ -548,10 +545,6 @@ def play(
                 sonyheaders.setdefault("user-agent", "jiotv")
 
                 sonyheaders = {k: str(v) for k, v in sonyheaders.items() if v}
-
-                print("printing sony headers and cookie")
-
-                print(sonyheaders)
 
         else:
 
@@ -632,7 +625,7 @@ def play(
         "user-agent": "jiotv",
         "cookie": headers["cookie"],
         "content-type": "application/vnd.apple.mpegurl",
-        "Accesstoken": headerssony["Accesstoken"]
+        "Accesstoken": sony_headers["Accesstoken"]
             }
             if(channel_id in ["5000", "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
     "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019",
@@ -680,7 +673,7 @@ def play(
 
             dialog = xbmcgui.DialogProgress()
             dialog.create("Loading Stream", "Please wait... buffering...")
-            xbmc.sleep(5000)  # Pause 3 seconds before playing
+            xbmc.sleep(1500)
             dialog.close()
             
             listitem = xbmcgui.ListItem(path=uriToUse)
@@ -979,4 +972,5 @@ def pvrsetup(plugin):
 def cleanup(plugin):
     urlquick.cache_cleanup(-1)
     cleanLocalCache()
+    cleanup_signals()
     Script.notify("Cache Cleaned", "")

@@ -214,7 +214,7 @@ def logout():
 
 def getHeaders():
     with PersistentDict("localdb") as db:
-        return db.get("headers", False)
+        return db.get("headers", None)
 
 
 def getCachedChannels():
@@ -222,13 +222,15 @@ def getCachedChannels():
         channelList = db.get("channelList", False)
         if not channelList:
             try:
+                req = urllib.request.Request(
+                    "https://jiotvapi.cdn.jio.com/apis/v3.0/getMobileChannelList/get/?langId=6&devicetype=phone&os=android&usertype=JIO&version=396"
+                )
                 channelListResp = json.load(
-                    urllib.request.urlopen(
-                        "https://jiotvapi.cdn.jio.com/apis/v3.0/getMobileChannelList/get/?langId=6&devicetype=phone&os=android&usertype=JIO&version=396"
-                    )
+                    urllib.request.urlopen(req, timeout=15)
                 ).get("result")
                 db["channelList"] = channelListResp
-            except:
+            except Exception as e:
+                Script.log("getCachedChannels error: {}".format(e), lvl=Script.ERROR)
                 Script.notify("Connection error ", "Retry after sometime")
         return db.get("channelList", False)
 
@@ -238,14 +240,15 @@ def getCachedDictionary():
         dictionary = db.get("dictionary", False)
         if not dictionary:
             try:
+                req = urllib.request.Request(
+                    "https://jiotvapi.cdn.jio.com/apis/v1.3/dictionary/dictionary?langId=6"
+                )
                 r = json.load(
-                    urllib.request.urlopen(
-                        "https://jiotvapi.cdn.jio.com/apis/v1.3/dictionary/dictionary?langId=6"
-                    )
+                    urllib.request.urlopen(req, timeout=15)
                 )
                 db["dictionary"] = r
-                print(db["dictionary"].get("channelCategoryMapping"))
-            except:
+            except Exception as e:
+                Script.log("getCachedDictionary error: {}".format(e), lvl=Script.ERROR)
                 Script.notify(
                     "dictionary url -Connection error ", "Retry after sometime"
                 )
@@ -266,7 +269,8 @@ def getFeatured():
             max_age=-1,
         ).json()
         return resp.get("featuredNewData", [])
-    except:
+    except Exception as e:
+        Script.log("getFeatured error: {}".format(e), lvl=Script.ERROR)
         Script.notify("Connection error ", "Retry after sometime")
 
 
@@ -275,14 +279,13 @@ def cleanLocalCache():
         with PersistentDict("localdb") as db:
             del db["channelList"]
             del db["dictionary"]
-    except:
-        Script.notify("Cache", "Cleaned")
+    except KeyError:
+        pass
+    Script.notify("Cache", "Cleaned")
 
 
 def getChannelHeaders():
     headers = getHeaders()
-    print("printing getchannelheaders====")
-    print(headers)
     return {
         "ssoToken": headers["ssotoken"],
         "userId": headers["userid"],
@@ -385,25 +388,20 @@ def zeeCookie(zee_channelid=None):
 
     try:
         resp = requests.post(url, headers=headers, params=params, json=json_data, timeout=15)
-        print("Status:", resp.status_code)
         if resp.status_code == 403:
-            print("⚠️ Forbidden — Token or signature likely expired")
+            Script.log("Zee5 Forbidden - Token or signature likely expired", lvl=Script.ERROR)
             return None
         result = resp.json()
     except Exception as e:
-        print("❌ Network error:", e)
+        Script.log("Zee5 network error: {}".format(e), lvl=Script.ERROR)
         return None
 
     m3u8_response = result.get("keyOsDetails", {}).get("video_token")
     if not m3u8_response:
-        print("⚠️ video_token missing")
+        Script.log("Zee5 video_token missing", lvl=Script.ERROR)
         return None
 
-    print("✅ video_token URL:", m3u8_response)
-
     cookie = "?" + m3u8_response.split("?", 1)[1] if "?" in m3u8_response else ""
-    print("->", cookie)
-
     return cookie
     
         
@@ -524,6 +522,11 @@ class Monitor(xbmc.Monitor):
 
 
 monitor = Monitor()
+
+
+def cleanup_signals():
+    _signals.clear()
+    _skip.clear()
 
 
 def kodi_rpc(method, params=None, raise_on_error=False):
