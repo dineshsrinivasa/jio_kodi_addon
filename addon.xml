@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.jiotv" name="JioTV" version="2.3.16" provider-name="kiranreddyrebel">
+<addon id="plugin.video.jiotv" name="JioTV" version="2.3.17" provider-name="Dinesh">
     <requires>
         <import addon="xbmc.python" version="3.0.0" />
         <import addon="script.module.codequick" version="1.0.2" />
@@ -7,7 +7,6 @@
         <import addon="inputstream.adaptive" minversion="2.6.6" />
         <import addon="script.module.m3u8" version="0.5.4" />
         <import addon="script.module.requests" version="2.27.1" />
-        <import addon="repository.kiranreddyrebel" version="2.0.1" />
         <!-- <import addon="script.module.web-pdb" /> -->
     </requires>
     <extension point="xbmc.python.pluginsource" library="addon.py">
@@ -21,10 +20,16 @@
         <platform>all</platform>
         <license>MIT</license>
         <forum>https://botallen.com/discord</forum>
-        <website>https://kiranreddyrebel.github.io</website>
-        <email>kodi@botallen.com</email>
-        <source>https://github.com/kiranreddyrebel/plugin.video.jiotv</source>
+        <website>https://dineshsrinivasa.github.io/jio_kodi_addon</website>
+        <email>dineshsrinivasa@users.noreply.github.com</email>
+        <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
         <news>
+	     [- 2.3.17 -]
+             [fixed] stability improvements to prevent hang and crash
+             [fixed] added timeout to network calls
+             [fixed] fixed session expiry handling
+             [fixed] reduced blocking sleep
+             [fixed] cleaned up debug prints
 	     [- 2.3.16 -]
             [added] improved zee channels and removed proxy way for faster. No crash
             [- 2.3.15 -]

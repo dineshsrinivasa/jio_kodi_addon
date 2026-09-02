@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="repository.dineshrepo" version="1.0.0" name="Dinesh JioTV Repository" provider-name="Dinesh">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0" />
+    </requires>
+    <extension point="xbmc.addon.repository" name="Dinesh JioTV Repository">
+        <info compressed="false">https://dineshsrinivasa.github.io/jio_kodi_addon/repository.dineshrepo/addons.xml</info>
+        <checksum>https://dineshsrinivasa.github.io/jio_kodi_addon/repository.dineshrepo/addons.xml.md5</checksum>
+        <datadir urldepth="2">https://dineshsrinivasa.github.io/jio_kodi_addon/</datadir>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en_GB">Dinesh JioTV Repository</summary>
+        <description lang="en_GB">Repository for JioTV Kodi addon by Dinesh</description>
+        <platform>all</platform>
+        <license>MIT</license>
+        <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
+        <assets>
+            <icon>icon.png</icon>
+        </assets>
+    </extension>
+</addon>

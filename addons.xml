@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addons>
+    <addon id="repository.dineshrepo" version="1.0.0" name="Dinesh JioTV Repository" provider-name="Dinesh">
+        <requires>
+            <import addon="xbmc.python" version="3.0.0" />
+        </requires>
+        <extension point="xbmc.addon.repository" name="Dinesh JioTV Repository">
+            <info compressed="false">https://dineshsrinivasa.github.io/jio_kodi_addon/repository.dineshrepo/addons.xml</info>
+            <checksum>https://dineshsrinivasa.github.io/jio_kodi_addon/repository.dineshrepo/addons.xml.md5</checksum>
+            <datadir urldepth="2">https://dineshsrinivasa.github.io/jio_kodi_addon/</datadir>
+        </extension>
+        <extension point="xbmc.addon.metadata">
+            <summary lang="en_GB">Dinesh JioTV Repository</summary>
+            <description lang="en_GB">Repository for JioTV Kodi addon by Dinesh</description>
+            <platform>all</platform>
+            <license>MIT</license>
+            <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
+            <assets>
+                <icon>icon.png</icon>
+            </assets>
+        </extension>
+    </addon>
+    <addon id="plugin.video.jiotv" name="JioTV" version="2.3.17" provider-name="Dinesh">
+        <requires>
+            <import addon="xbmc.python" version="3.0.0" />
+            <import addon="script.module.codequick" version="1.0.2" />
+            <import addon="script.module.inputstreamhelper" version="0.5.10" />
+            <import addon="inputstream.adaptive" minversion="2.6.6" />
+            <import addon="script.module.m3u8" version="0.5.4" />
+            <import addon="script.module.requests" version="2.27.1" />
+        </requires>
+        <extension point="xbmc.python.pluginsource" library="addon.py">
+            <provides>video</provides>
+        </extension>
+        <extension point="xbmc.service" library="service.py" />
+        <extension point="xbmc.addon.metadata">
+            <summary lang="en_GB">Stream Live Indian Channels From JioTV on Kodi</summary>
+            <description lang="en_GB">Enjoy Live TV experience in Kodi.</description>
+            <language>en</language>
+            <platform>all</platform>
+            <license>MIT</license>
+            <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
+            <news>
+                [- 2.3.17 -]
+                [fixed] stability improvements to prevent hang and crash
+                [fixed] added timeout to network calls
+                [fixed] fixed session expiry handling
+                [fixed] reduced blocking sleep
+                [fixed] cleaned up debug prints
+            </news>
+            <disclaimer>This plugin is not officially commissioned/supported by Jio.</disclaimer>
+            <assets>
+                <icon>resources/icon.png</icon>
+                <fanart>resources/icon.png</fanart>
+            </assets>
+            <reuselanguageinvoker>true</reuselanguageinvoker>
+        </extension>
+    </addon>
+</addons>
