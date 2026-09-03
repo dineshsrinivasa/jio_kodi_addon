@@ -1,3 +1,6 @@
+[- 2.3.22 -]
+[fixed] watchdog crashed on startup: xbmc.abortRequested() is not a method, it is a bool property -> use xbmc.Monitor().abortRequested(). The watchdog never ran, so stalled streams were never auto-recovered.
+[fixed] watchdog now also auto-reconnects when playback ends/errors on its own (e.g. Jio CDN returns 403 on expired __hdnea__ token and the stream dies), in addition to detecting a frozen-time stall. It still does NOT reconnect on a manual/TV channel switch.
 [- 2.3.21 -]
 [added] "Upload log for remote debugging" button: reads kodi.log and posts it to paste.rs, then shows the shareable link
 [added] "Low quality test" setting to force the lowest bitrate (helps isolate buffering-stall causes)

@@ -15,6 +15,7 @@ class PlayerWatcher(xbmc.Player):
     def __init__(self):
         xbmc.Player.__init__(self)
         self.stopped = False
+        self.want_retry = False
         self.on_stop = None
         self._restarting = False
 
@@ -25,7 +26,7 @@ class PlayerWatcher(xbmc.Player):
                 lvl=Script.DEBUG,
             )
             return
-        Script.log("WATCHDOG: %s" % event, lvl=Script.DEBUG)
+        Script.log("WATCHDOG: %s" % event, lvl=Script.INFO)
         self.stopped = True
         if self.on_stop:
             try:
@@ -33,14 +34,24 @@ class PlayerWatcher(xbmc.Player):
             except Exception:
                 pass
 
+    def _handle_failure(self, event):
+        if self._restarting:
+            Script.log(
+                "WATCHDOG: %s ignored (self-restart in progress)" % event,
+                lvl=Script.DEBUG,
+            )
+            return
+        Script.log("WATCHDOG: %s (stream failure) -> scheduling retry" % event, lvl=Script.WARNING)
+        self.want_retry = True
+
     def onPlayBackStopped(self):
         self._handle_stop("onPlayBackStopped")
 
     def onPlayBackEnded(self):
-        self._handle_stop("onPlayBackEnded")
+        self._handle_failure("onPlayBackEnded")
 
     def onPlayBackError(self):
-        self._handle_stop("onPlayBackError")
+        self._handle_failure("onPlayBackError")
 
 
 def _make_listitem(info):
@@ -100,6 +111,42 @@ def _reconnect(watch, refresh):
         return False
 
 
+def _retry(watch, channel_id, refresh, max_attempts, attempt, reason="failure"):
+    """Perform one reconnect attempt, respecting the maximum attempts limit."""
+    if attempt >= max_attempts:
+        Script.log(
+            "WATCHDOG: %s but max attempts (%d) reached; giving up on channel %s"
+            % (reason, max_attempts, channel_id),
+            lvl=Script.ERROR,
+        )
+        try:
+            xbmcgui.Dialog().notification(
+                "JioTV", "Stream failed and could not auto-recover"
+            )
+        except Exception:
+            pass
+        return False
+    Script.log(
+        "WATCHDOG: reconnect needed (%s) on channel %s. Attempt %d/%d"
+        % (reason, channel_id, attempt + 1, max_attempts),
+        lvl=Script.WARNING,
+    )
+    if _reconnect(watch, refresh):
+        Script.log(
+            "WATCHDOG: reconnect attempt %d SUCCESS channel %s"
+            % (attempt + 1, channel_id),
+            lvl=Script.WARNING,
+        )
+        return True
+    else:
+        Script.log(
+            "WATCHDOG: reconnect attempt %d FAILED channel %s"
+            % (attempt + 1, channel_id),
+            lvl=Script.ERROR,
+        )
+        return False
+
+
 def watchdog(channel_id, refresh, max_attempts=3, stall_window=8, enable=True):
     """Background monitor for a playback session.
 
@@ -112,9 +159,10 @@ def watchdog(channel_id, refresh, max_attempts=3, stall_window=8, enable=True):
         return
 
     watch = PlayerWatcher()
+    mon = xbmc.Monitor()
 
     start_wait = time.time()
-    while not watch.isPlaying() and not watch.stopped and not xbmc.abortRequested():
+    while not watch.isPlaying() and not watch.stopped and not mon.abortRequested():
         if time.time() - start_wait > 35:
             Script.log(
                 "WATCHDOG: playback never started within 35s; watchdog exiting",
@@ -123,7 +171,7 @@ def watchdog(channel_id, refresh, max_attempts=3, stall_window=8, enable=True):
             return
         xbmc.sleep(500)
 
-    if watch.stopped or xbmc.abortRequested():
+    if watch.stopped or mon.abortRequested():
         return
 
     Script.log(
@@ -139,8 +187,19 @@ def watchdog(channel_id, refresh, max_attempts=3, stall_window=8, enable=True):
     last_moved = None
     armed = False
 
-    while not watch.stopped and not xbmc.abortRequested():
+    while not watch.stopped and not mon.abortRequested():
         if not watch.isPlaying():
+            if watch.want_retry:
+                watch.want_retry = False
+                xbmc.sleep(500)
+                if _retry(watch, channel_id, refresh, max_attempts, attempt, reason="failure"):
+                    attempt += 1
+                    first_seen = time.time()
+                    last_time = None
+                    last_moved = None
+                    armed = False
+                else:
+                    return
             xbmc.sleep(500)
             continue
 
@@ -185,38 +244,9 @@ def watchdog(channel_id, refresh, max_attempts=3, stall_window=8, enable=True):
                 stalled = True
 
         if stalled:
-            if attempt >= max_attempts:
-                Script.log(
-                    "WATCHDOG: stall but max attempts (%d) reached; giving up on channel %s"
-                    % (max_attempts, channel_id),
-                    lvl=Script.ERROR,
-                )
-                try:
-                    xbmcgui.Dialog().notification(
-                        "JioTV", "Stream stalled and could not auto-recover"
-                    )
-                except Exception:
-                    pass
+            if not _retry(watch, channel_id, refresh, max_attempts, attempt, reason="stall"):
                 return
             attempt += 1
-            Script.log(
-                "WATCHDOG: STALL on channel %s (armed=%s cur=%s last=%s). Reconnect attempt %d/%d"
-                % (channel_id, armed, cur, last_time, attempt, max_attempts),
-                lvl=Script.WARNING,
-            )
-            if _reconnect(watch, refresh):
-                Script.log(
-                    "WATCHDOG: reconnect attempt %d SUCCESS channel %s"
-                    % (attempt, channel_id),
-                    lvl=Script.WARNING,
-                )
-            else:
-                Script.log(
-                    "WATCHDOG: reconnect attempt %d FAILED channel %s"
-                    % (attempt, channel_id),
-                    lvl=Script.ERROR,
-                )
-                return
             first_seen = time.time()
             last_time = None
             last_moved = None
@@ -226,6 +256,6 @@ def watchdog(channel_id, refresh, max_attempts=3, stall_window=8, enable=True):
 
     Script.log(
         "WATCHDOG: stopping watchdog for channel %s (stopped=%s abort=%s)"
-        % (channel_id, watch.stopped, xbmc.abortRequested()),
+        % (channel_id, watch.stopped, mon.abortRequested()),
         lvl=Script.DEBUG,
     )

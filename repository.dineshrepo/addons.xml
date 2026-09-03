@@ -22,7 +22,7 @@
             </assets>
         </extension>
     </addon>
-    <addon id="plugin.video.jiotv" name="JioTV" version="2.3.21" provider-name="Dinesh">
+    <addon id="plugin.video.jiotv" name="JioTV" version="2.3.22" provider-name="Dinesh">
         <requires>
             <import addon="xbmc.python" version="3.0.0" />
             <import addon="script.module.codequick" version="1.0.2" />
@@ -43,23 +43,48 @@
             <license>MIT</license>
             <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
             <news>
-                                [- 2.3.21 -]
+                [- 2.3.22 -]
+
+                [fixed] watchdog crashed on startup (xbmc.abortRequested() is a bool property, not a method) so stalled streams were never recovered; now uses xbmc.Monitor().abortRequested()
+
+                [fixed] watchdog now also auto-reconnects on stream failure/end (Jio CDN 403 on expired __hdnea__ token), not just on a frozen-time stall; still no reconnect on manual/TV channel switch
+
+                [- 2.3.21 -]
+
                 [added] "Upload log for remote debugging" button: posts kodi.log to paste.rs and shows the shareable link
+
                 [added] "Low quality test" setting to force the lowest bitrate (helps isolate buffering-stall causes)
-                [updated] watchdog start/monitoring messages now logged at INFO level so they appear in a normal kodi.log[- 2.3.20 -]
+
+                [updated] watchdog start/monitoring messages now logged at INFO level so they appear in a normal kodi.log
+
+                [- 2.3.20 -]
+
                 [fixed] channels not playing (400 Bad Request): restored working Jio geturl request format (form-encoded + Sony headers) for normal channels
+
                 [- 2.3.19 -]
+
                 [fixed] Kodi crash when opening addon settings (fixed number/spinner setting structure for Nexus/Omega)
+
                 [- 2.3.18 -]
+
                 [fixed] auto-recover live streams that stall/buffer forever (watchdog + re-resolve fresh stream)
+
                 [fixed] restored stable JioTV channel resolver (regression from upstream main.py change)
+
                 [added] new settings: Auto-recover stalled streams, Max reconnect attempts, Stall detection delay
+
                 [added] WATCHDOG debug logging for diagnosing playback issues
+
                 [- 2.3.17 -]
+
                 [fixed] stability improvements to prevent hang and crash
+
                 [fixed] added timeout to network calls
+
                 [fixed] fixed session expiry handling
+
                 [fixed] reduced blocking sleep
+
                 [fixed] cleaned up debug prints
             </news>
             <disclaimer>This plugin is not officially commissioned/supported by Jio.</disclaimer>
