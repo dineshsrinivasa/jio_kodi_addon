@@ -192,3 +192,28 @@ buffered). My "restore json" change broke playback entirely (400). FIXED in v2.3
   addons.xml lists 2.3.22, md5 matches.
 - PENDING on-device validation: does the watchdog (1) not crash now, and (2) successfully
   auto-reconnect via `watch.play()` under a PVR IPTV Simple session when the 403/EOF occurs.
+
+## v2.3.23 - On-device result: watchdog was NOT running (still no recovery) - setting was OFF
+- Post-2.3.22 on-device log `https://paste.rs/Wf1t5` (incar KT1001, Kodi 21.2, 64-bit): device booted
+  2.3.20, repo auto-updated to 2.3.22 at 11:46:04, user used the new Upload-Log button (proves
+  process is >=2.3.21), DID the 403->EOF stall AGAIN (channel DD_India, 403 from 11:49:56, EOF+OnExit
+  11:50:08, ~12s) and playback ENDED with NO recovery.
+- CRITICAL: there are ZERO `WATCHDOG:` lines in the whole log - not even the INFO "watchdog thread
+  started" / "monitoring playback" lines. That means the watchdog never started. Since `play` calls
+  `_start_watchdog` (main.py:692) unconditionally after successful `_resolve_stream`, the only code
+  path that produces NO INFO log is `Settings.get_boolean("reconnect")` returning False
+  (main.py:636) -> returns early with a DEBUG-only message invisible at INFO log level.
+- So the "Auto-recover stalled streams" toggle was OFF on this device (the thing we had been
+  treating as automatically-on). User then ENABLED it and will restart Kodi + retest.
+- NOTE: no AttributeError in this log (crash fix held up); the remaining blocker was simply that the
+  feature was disabled. Also, Kodi does NOT hot-reload addon modules on repo auto-update - an
+  already-running plugin process keeps its loaded code until Kodi restarts, so always restart Kodi
+  after an auto-update before testing.
+- v2.3.23 (shipped to make status unambiguous): changed the "auto-recover disabled" message in
+  `_start_watchdog` (main.py) and reconnect.py's `enable=False` path from DEBUG to WARNING, so a
+  normal kodi.log will ALWAYS show whether the watchdog was skipped. Rebuilt zip
+  (17 entries, 39543 bytes), addons.xml+md5 = a7d9da8c5d35cd4a1627ab5862e07b18, commit eea576c
+  pushed to origin/main.
+- PENDING: user toggled setting ON + restart Kodi + reproduce stall + fresh Upload-Log capture. We
+  expect to now see `WATCHDOG: watchdog thread started for channel X` then, on the 403->EOF,
+  `WATCHDOG: onPlayBackEnded/Error (stream failure) -> scheduling retry` and reconnect attempts.
