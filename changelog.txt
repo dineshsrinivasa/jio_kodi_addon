@@ -1,3 +1,5 @@
+[- 2.3.23 -]
+[improved] watchdog state is now always visible in a normal kodi.log: the "auto-recover disabled" message is logged at WARNING level (was DEBUG/invisible), so an on/off status can always be diagnosed.
 [- 2.3.22 -]
 [fixed] watchdog crashed on startup: xbmc.abortRequested() is not a method, it is a bool property -> use xbmc.Monitor().abortRequested(). The watchdog never ran, so stalled streams were never auto-recovered.
 [fixed] watchdog now also auto-reconnects when playback ends/errors on its own (e.g. Jio CDN returns 403 on expired __hdnea__ token and the stream dies), in addition to detecting a frozen-time stall. It still does NOT reconnect on a manual/TV channel switch.

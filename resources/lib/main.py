@@ -635,7 +635,10 @@ def _start_watchdog(channel_id, showtime=None, srno=None, programId=None, begin=
     try:
         enable = Settings.get_boolean("reconnect")
         if not enable:
-            Script.log("WATCHDOG: reconnect disabled by settings", lvl=Script.DEBUG)
+            Script.log(
+                "WATCHDOG: auto-recover disabled by settings; NOT starting watchdog",
+                lvl=Script.WARNING,
+            )
             return
         try:
             attempts = int(Settings.get_string("reconnect_attempts"))

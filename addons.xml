@@ -22,7 +22,7 @@
             </assets>
         </extension>
     </addon>
-    <addon id="plugin.video.jiotv" name="JioTV" version="2.3.22" provider-name="Dinesh">
+    <addon id="plugin.video.jiotv" name="JioTV" version="2.3.23" provider-name="Dinesh">
         <requires>
             <import addon="xbmc.python" version="3.0.0" />
             <import addon="script.module.codequick" version="1.0.2" />
@@ -43,6 +43,9 @@
             <license>MIT</license>
             <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
             <news>
+                [- 2.3.23 -]
+
+                [improved] watchdog auto-recover status is now always visible in kodi.log (disabled message logged at WARNING instead of invisible DEBUG), so we can always tell if the watchdog is armed
                 [- 2.3.22 -]
 
                 [fixed] watchdog crashed on startup (xbmc.abortRequested() is a bool property, not a method) so stalled streams were never recovered; now uses xbmc.Monitor().abortRequested()

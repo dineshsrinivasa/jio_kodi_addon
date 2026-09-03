@@ -155,7 +155,9 @@ def watchdog(channel_id, refresh, max_attempts=3, stall_window=8, enable=True):
     Exits automatically when playback ends/stops or Kodi is shutting down.
     """
     if not enable:
-        Script.log("WATCHDOG: reconnect disabled by settings, not starting", lvl=Script.DEBUG)
+        Script.log(
+            "WATCHDOG: reconnect disabled by settings, not starting", lvl=Script.WARNING
+        )
         return
 
     watch = PlayerWatcher()
