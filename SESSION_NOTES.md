@@ -35,36 +35,47 @@ There is no recovery/watchdog mechanism anywhere. The stream is resolved once an
 inputstream.adaptive; if it stalls (expired `__hdnea__` token, CDN hiccup, stuck manifest) the
 player buffers forever and nothing restarts it.
 
-### Root cause #2: Upstream regression in Kiran's repo (confirmed via git logs)
-Added kiran remote: `git remote add kiran https://github.com/kiranreddyrebel/plugin.video.jiotv.git`
-Fetched. Kiran's `main` = commit `67a35ab` (identical hashes to our early history — our repo
-dineshsrinivasa/jio_kodi_addon is a fork of kiranreddyrebel).
-- Kiran's commit `23322b0` (Oct 1 2025, "Update main.py") changed the **normal (non-special)
-  channel** resolution in `play` from:
-    `urlquick.post(GET_CHANNEL_URL, json=rjson, headers=getChannelHeadersWithHost()/getChannelHeaders())`
-  to the Sony-style form-encoded call:
-    `urlquick.post(..., data="stream_type=Seek&channel_id="+chan, headers=sony_headers)`
-  This is the likely regression that destabilized buffering on normal channels.
-- Local commit `13f67fa` (Dinesh, "stability improvements") is benign (removed prints, added guards).
-- The `resp`/`cookie`/`onlyUrl` logic in the current `main.py` is also convoluted with
-  `ZEE_RANGE`/`ZEE_MAP` gating that has dead/broken paths.
+### Root cause #2: WRONG resolver format for NORMAL channels -> 400 (corrected 2026 session)
+IMPORTANT CORRECTION: an earlier note claimed the JSON resolver
+`urlquick.post(GET_CHANNEL_URL, json=rjson, headers=getChannelHeaders()/getChannelHeadersWithHost())`
+was "the working resolver" to RESTORE. That was WRONG. User's kodi.log (v2.3.19) showed EVERY normal
+channel (619, 626, 370, 3240) failing with:
+`WATCHDOG: _resolve_stream FAILED for channel X: 400 Client Error for url: .../geturl`
+Jio's geturl API now REJECTS the `json=rjson` payload. The WORKING current format (confirmed by
+reading Kiran's CURRENT main.py on branch kiran/main) for NORMAL channels is the SAME form-encoded
+Sony-style call used for the special channels:
+    urlquick.post("https://jiotvapi.media.jio.com/playback/apis/v1/geturl?langId=6",
+                  data="stream_type=Seek&channel_id="+chan, verify=False,
+                  headers=getSonyHeaders(), max_age=-1)
+So the form-encoded + sony_headers approach is what makes channels PLAY (they previously played but
+buffered). My "restore json" change broke playback entirely (400). FIXED in v2.3.20.
+- The user's ORIGINAL bug (buffering forever) is exactly what the watchdog solves: the form-encoded
+  working resolver returns a stream with an expiring __hdnea__ token; when it stalls, the watchdog
+  re-resolves a FRESH token.
 
-### FIX IMPLEMENTED (v2.3.18, committed this session)
+### FIX IMPLEMENTED (v2.3.18 / watchdog, committed this session)
 - New file `resources/lib/reconnect.py`: `PlayerWatcher(xbmc.Player)` + `watchdog(...)` daemon
   thread that polls playback progress, detects stalls (time frozen while playing, or never starts
   progressing), and restarts playback on the SAME channel with a FRESH stream (new `__hdnea__`
   token) via a `refresh()` callback. Honors max attempts; pauses don't trigger it; self-stops when
   playback ends or Kodi shuts down.
 - `main.py`: refactored `play` -> `_resolve_stream(...)` (returns normalized info dict) +
-  `_start_watchdog(...)`. RESTORED the working JSON resolver (`GET_CHANNEL_URL`, `json=rjson`,
-  `getChannelHeadersWithHost()/getChannelHeaders()`) for NORMAL channels (ignoring Zee/Sony as user
-  requested). Zee/Sony special handling preserved as-is (not the focus).
+  `_start_watchdog(...)`. Zee/Sony special handling preserved as-is (user ignored Zee/Sony).
 - New settings: `reconnect` (bool, default true), `reconnect_attempts` (int 1-10, default 3),
   `reconnect_stall` (int 3-30s, default 8). Strings #33050/#33051/#33052.
 - Added `WATCHDOG` debug logging (Script.log DEBUG) throughout -- enables diagnosing playback via
   Kodi debug log.
-- Version bumped 2.3.17 -> 2.3.18. Rebuilt `Zips/plugin.video.jiotv-2.3.18.zip`, regenerated root
-  & repository.dineshrepo `addons.xml` + md5 (both = 436a9e03f9f4d26aabfcf6e19047060a).
+
+### v2.3.20 - FIXED normal channels (400) by matching working geturl request
+- 2.3.18 had the watchdog; 2.3.19 fixed the settings-crash; but 2.3.19 broke PLAYBACK: my
+  `_resolve_stream` used `json=rjson` + `getChannelHeaders()` for NORMAL channels -> Jio returned
+  400. User log confirmed.
+- v2.3.20 changed the normal-channel branch to the CURRENTLY-WORKING form-encoded request:
+  `GET_CHANNEL_URL + "?langId=6"` with `data="stream_type=Seek&channel_id="+chan` and
+  `headers=sony_headers` (getSonyHeaders()). Exactly Kiran's current main.py.
+- Version 2.3.20 rebuilt: `Zips/plugin.video.jiotv-2.3.20.zip` (17 files, forward-slash entries),
+  root & repository.dineshrepo `addons.xml` + md5 (`fd9a80fa991c350ef16490e8e186f09f`), added
+  news/changelog.
 
 ## How to collect debug logs from users (to review)
 1. In Kodi: Settings > System > Logging > enable "Enable debug logging".

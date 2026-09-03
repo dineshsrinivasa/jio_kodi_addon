@@ -515,14 +515,12 @@ def _resolve_stream(channel_id, showtime=None, srno=None, programId=None, begin=
                 headers["cookie"] = cookie
                 uriToUse = resp.get("result", "")
         else:
-            enableHost = Settings.get_boolean("enablehost")
+            chan = str(channel_id)
             res = urlquick.post(
-                GET_CHANNEL_URL,
-                json=rjson,
+                GET_CHANNEL_URL + "?langId=6",
+                data="stream_type=Seek&channel_id=" + chan,
                 verify=False,
-                headers=getChannelHeadersWithHost()
-                if enableHost
-                else getChannelHeaders(),
+                headers=sony_headers,
                 max_age=-1,
             )
             resp = res.json()

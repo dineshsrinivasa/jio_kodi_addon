@@ -22,7 +22,7 @@
             </assets>
         </extension>
     </addon>
-    <addon id="plugin.video.jiotv" name="JioTV" version="2.3.19" provider-name="Dinesh">
+    <addon id="plugin.video.jiotv" name="JioTV" version="2.3.20" provider-name="Dinesh">
         <requires>
             <import addon="xbmc.python" version="3.0.0" />
             <import addon="script.module.codequick" version="1.0.2" />
@@ -43,6 +43,8 @@
             <license>MIT</license>
             <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
             <news>
+                [- 2.3.20 -]
+                [fixed] channels not playing (400 Bad Request): restored working Jio geturl request format (form-encoded + Sony headers) for normal channels
                 [- 2.3.19 -]
                 [fixed] Kodi crash when opening addon settings (fixed number/spinner setting structure for Nexus/Omega)
                 [- 2.3.18 -]
