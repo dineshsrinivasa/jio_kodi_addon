@@ -228,3 +228,11 @@ msgstr ""
 msgctxt "#33052"
 msgid "Stall detection delay (seconds)"
 msgstr ""
+
+msgctxt "#33053"
+msgid "Low quality test (force lowest bitrate)"
+msgstr ""
+
+msgctxt "#33054"
+msgid "Upload log for remote debugging"
+msgstr ""

@@ -15,6 +15,7 @@ import xbmc
 import time
 import xbmcplugin
 import xbmcgui
+import xbmcvfs
 import sys
 
 # add-on imports
@@ -535,6 +536,10 @@ def _resolve_stream(channel_id, showtime=None, srno=None, programId=None, begin=
         }
 
         qltyopt = Settings.get_string("quality")
+        lowq_test = Settings.get_boolean("lowq")
+        if lowq_test:
+            qltyopt = "Lowest"
+            Script.log("WATCHDOG: LOW-Q TEST active, forcing lowest bitrate", lvl=Script.INFO)
         selectionType = "adaptive"
         isMpd = Settings.get_boolean("usempd") and bool(resp) and bool(resp.get("mpd", False))
         if isMpd:
@@ -658,7 +663,7 @@ def _start_watchdog(channel_id, showtime=None, srno=None, programId=None, begin=
         Script.log(
             "WATCHDOG: watchdog thread started for channel %s"
             % channel_id,
-            lvl=Script.DEBUG,
+            lvl=Script.INFO,
         )
     except Exception as e:
         Script.log(
@@ -995,3 +1000,40 @@ def cleanup(plugin):
     cleanLocalCache()
     cleanup_signals()
     Script.notify("Cache Cleaned", "")
+
+
+# Upload Kodi log to a paste service for remote debugging
+@Script.register
+def uploadlog(plugin):
+    try:
+        log_path = xbmcvfs.translatePath("special://logpath/kodi.log")
+        if not xbmcvfs.exists(log_path):
+            Script.notify("Upload Log", "kodi.log not found")
+            return
+        content = ""
+        with xbmcvfs.File(log_path, "r") as f:
+            content = f.read()
+        if not content:
+            Script.notify("Upload Log", "log is empty")
+            return
+        Script.notify("Upload Log", "Uploading kodi.log...")
+        resp = requests.post(
+            "https://paste.rs",
+            data=content.encode("utf-8"),
+            headers={"Content-Type": "text/plain"},
+            timeout=60,
+        )
+        url = resp.text.strip()
+        if not url.startswith("http"):
+            Script.notify("Upload Log", "Upload failed: %s" % resp.status_code)
+            return
+        Script.log("UPLOADLOG: shared log at %s" % url, lvl=Script.INFO)
+        Dialog().textviewer("JioTV - Log shared", "Share this link:\n\n%s\n\n" % url)
+        try:
+            xbmc.executebuiltin("Clipboard(%s)" % url)
+        except Exception:
+            pass
+        Script.notify("Upload Log", "Log URL copied")
+    except Exception as e:
+        Script.log("UPLOADLOG: error: %s" % e, lvl=Script.ERROR)
+        Script.notify("Upload Log", "Error: %s" % e)

@@ -43,6 +43,16 @@
 						<close>true</close>
 					</control>
 				</setting>
+				<setting help="" id="uploadlog" label="33054" type="action">
+					<level>0</level>
+					<data>RunPlugin(plugin://plugin.video.jiotv/resources/lib/main/uploadlog/)</data>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control format="action" type="button">
+						<close>true</close>
+					</control>
+				</setting>
 				<setting help="" id="m3ugen" label="33004" type="boolean">
 					<level>0</level>
 					<default>false</default>
@@ -101,6 +111,11 @@
 					<dependencies>
 						<dependency setting="reconnect" type="enable">true</dependency>
 					</dependencies>
+				</setting>
+				<setting help="" id="lowq" label="33053" type="boolean">
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle"></control>
 				</setting>
 				<setting help="" id="number_toggle" label="33048" type="boolean">
 					<level>0</level>

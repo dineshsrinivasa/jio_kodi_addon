@@ -129,7 +129,7 @@ def watchdog(channel_id, refresh, max_attempts=3, stall_window=8, enable=True):
     Script.log(
         "WATCHDOG: monitoring playback for channel %s (attempts=%d stall_window=%ss)"
         % (channel_id, max_attempts, stall_window),
-        lvl=Script.DEBUG,
+        lvl=Script.INFO,
     )
 
     never_started = 40

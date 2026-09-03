@@ -77,6 +77,31 @@ buffered). My "restore json" change broke playback entirely (400). FIXED in v2.3
   root & repository.dineshrepo `addons.xml` + md5 (`fd9a80fa991c350ef16490e8e186f09f`), added
   news/changelog.
 
+### v2.3.20 CONFIRMED WORKING on device (2026-09-03)
+- User confirmed on 2.3.20: "channel works fine with 2.3.20 but main issue not fixed yet, it stuck
+  again in buffer after some time". => The 400 is FIXED; playback now starts but after some time
+  sticks in buffering (the ORIGINAL stall bug the watchdog is meant to recover). We need a 2.3.20+
+  kodi.log captured DURING a stall to see whether the watchdog fires and why reconnect may fail.
+
+## v2.3.21 - diagnostics tooling (this session)
+- Confirmed 2.3.20 works on device; remaining = mid-playback stall. To diagnose, added:
+  1. **`Upload log for remote debugging`** settings button (route `resources/lib/main/uploadlog`):
+     reads `kodi.log` at `special://logpath/kodi.log`, POSTs raw body to `https://paste.rs`
+     (returns the paste URL in the response body), shows it in a textviewer and copies it to
+     clipboard. String #33054. `paste.rs` verified reachable: POST -> 201 + `https://paste.rs/...`.
+  2. **`Low quality test`** setting (`lowq`, string #33053): when ON, `_resolve_stream` forces
+     `qltyopt="Lowest"` (quality_to_enum -> index 0) and logs
+     `WATCHDOG: LOW-Q TEST active, forcing lowest bitrate` at INFO. Helps isolate whether the stall
+     is bandwidth-related vs token-expiry (expect: it's token expiry, low quality won't fix it).
+- Bumped watchdog start + "monitoring playback" log lines from DEBUG -> INFO so they appear in a
+  NORMAL (non-debug) kodi.log. The STALL/reconnect events were already WARNING/ERROR.
+- Version 2.3.21 rebuilt: `Zips/plugin.video.jiotv-2.3.21.zip` (17 forward-slash entries), root &
+  repository.dineshrepo `addons.xml` + md5 (`49ee3582a3107651791d58eeaf82ea65`), added
+  news/changelog, removed 2.3.20 zip.
+- LESSON: `System.IO.Compression.ZipArchive` requires `Add-Type -AssemblyName
+  System.IO.Compression.FileSystem` to be loaded in each fresh PowerShell process (Rediscovered:
+  type is not available across separate bash invocations).
+
 ## How to collect debug logs from users (to review)
 1. In Kodi: Settings > System > Logging > enable "Enable debug logging".
 2. Reproduce the buffer-stall on a normal channel, wait ~10s, then switch channels.
