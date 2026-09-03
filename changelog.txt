@@ -1,3 +1,5 @@
+[- 2.3.19 -]
+[fixed] Kodi crash when opening addon settings (fixed number/spinner setting structure for Nexus/Omega)
 [- 2.3.18 -]
 [fixed] auto-recover live streams that stall/buffer forever (watchdog + re-resolve fresh stream)
 [fixed] restored stable JioTV channel resolver (regression from upstream main.py change)

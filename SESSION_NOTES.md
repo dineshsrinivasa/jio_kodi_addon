@@ -101,6 +101,24 @@ dineshsrinivasa/jio_kodi_addon is a fork of kiranreddyrebel).
 - To actually validate the watchdog fix end-to-end: enable Kodi debug logging, reproduce a
   buffer-stall on a normal channel, grab `kodi.log`, and check `WATCHDOG:` lines.
 
+## v2.3.19 - Settings-page crash on Android (fixed this session)
+- After 2.3.18 was installed on the user's ANDROID TAB, opening the addon's Settings page (via
+  Add-ons > JioTV > Configure) hard-crashed Kodi (force close), twice.
+- ROOT CAUSE: my two new number settings (`reconnect_attempts`, `reconnect_stall`) used:
+      <setting id="..." type="number"> + <control type="spinner" format="integer">
+          <minimum>/<step>/<maximum> INSIDE the <control> tag.
+  On Kodi Nexus 20 / Omega 21 this deprecated control nesting hard-crashes the settings renderer.
+- FIX: converted both to the standard Kodi structure:
+      <setting id="..." type="integer"> + <constraints><minimum>/<step>/<maximum></constraints>
+      + minimal <control type="spinner" format="integer" />
+  Verified settings.xml parses. Type was changed from "number" to "integer" (correct Kodi type).
+- Version bumped 2.3.18 -> 2.3.19 (crash fix = new version so repo distributes corrected file).
+  Rebuilt Zips/plugin.video.jiotv-2.3.19.zip (forward-slash entries, 17 files), updated both
+  addons.xml (version+news) + md5 (now f9345a3b8bd29f0304c94df4d2de3a83), removed 2.3.18 zip.
+- LESSON: when adding number/integer settings to settings.xml for a Kodi addon, ALWAYS put
+  minimum/step/maximum in <constraints> and keep <control> minimal. Avoid <type="number"> (use
+  "integer" for spinners).
+
 ## Future / known remaining issues
 - The convoluted `_resolve_stream` still mirrors upstream Zee/Sony quirks; a full cleanup of the
   `ZEE_RANGE`/`ZEE_MAP`/`DIRECT_IDS` gating is desirable later. Zee/Sony were intentionally left

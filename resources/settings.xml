@@ -76,26 +76,28 @@
 					<default>true</default>
 					<control type="toggle"></control>
 				</setting>
-				<setting help="" id="reconnect_attempts" label="33051" type="number">
+				<setting help="" id="reconnect_attempts" label="33051" type="integer">
 					<level>0</level>
 					<default>3</default>
-					<control type="spinner" format="integer">
+					<constraints>
 						<minimum>1</minimum>
 						<step>1</step>
 						<maximum>10</maximum>
-					</control>
+					</constraints>
+					<control type="spinner" format="integer" />
 					<dependencies>
 						<dependency setting="reconnect" type="enable">true</dependency>
 					</dependencies>
 				</setting>
-				<setting help="" id="reconnect_stall" label="33052" type="number">
+				<setting help="" id="reconnect_stall" label="33052" type="integer">
 					<level>0</level>
 					<default>8</default>
-					<control type="spinner" format="integer">
+					<constraints>
 						<minimum>3</minimum>
 						<step>1</step>
 						<maximum>30</maximum>
-					</control>
+					</constraints>
+					<control type="spinner" format="integer" />
 					<dependencies>
 						<dependency setting="reconnect" type="enable">true</dependency>
 					</dependencies>
