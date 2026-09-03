@@ -168,3 +168,27 @@ buffered). My "restore json" change broke playback entirely (400). FIXED in v2.3
   if/elif checks in `play` and repeated literal tuples in m3ugen — beware inconsistencies.
 - `getSonyHeaders()` builds a broad header dict incl. `Channel_id: 471`.
 - Don't commit secrets/tokens (some Zee tokens are hardcoded in utils.zeeCookie).
+
+## v2.3.22 - Watchdog startup crash (root cause of non-recovery) + reconnect on stream death
+- On-device log `https://paste.rs/hKE1L` (CloudWalker CloudTV518, Kodi 21.3 32-bit) revealed the
+  real reason the watchdog NEVER ran: it crashed immediately at thread start:
+      AttributeError: module 'xbmc' has no attribute 'abortRequested'
+  at reconnect.py:117 in the loop `while not watch.isPlaying() ... and not xbmc.abortRequested()`.
+- `xbmc.abortRequested` is a BOOLEAN PROPERTY, not a method. Correct: `xbmc.Monitor().abortRequested()`
+  (the idiom already used in service.py:36). Fixed all 4 usages (reconnect.py) by adding
+  `mon = xbmc.Monitor()` and calling `mon.abortRequested()`.
+- Stall sequence (channel 626 Suvarna News): plays ~2min, then HTTP 403 on CDN segment + master
+  re-request (expired `__hdnea__` token), retries ~9s, then `eof reading from demuxer` -> playback
+  actually ENDS (`onPlayBackEnded`), not hangs.
+- Because the stream DIES (Ended/Error) rather than only freezing, the frozen-time stall detector
+  alone would not reconnect. v2.3.22 also reconnects on `onPlayBackEnded`/`onPlayBackError`
+  (`_handle_failure` sets `want_retry=True`) while still NOT reconnecting on `onPlayBackStopped`
+  (manual/TV channel switch). Refactored the reconnect into shared `_retry(...)` honoring
+  `max_attempts` (both stall and failure paths).
+- Default `stall_window=8` can race the ~9s EOF; kept for now, may lower to 5s if needed on-device.
+- Version bumped to 2.3.22; rebuilt zip (17 forward-slash entries, 39433 bytes), updated both
+  addons.xml (version+news, LF-only news block) + md5 (now c7ee1e0e676bc63e0d01a5b18492018b),
+  removed 2.3.21 zip. Commit c5847d1, pushed to origin/main. Live verified: zip HTTP 200 len=39433,
+  addons.xml lists 2.3.22, md5 matches.
+- PENDING on-device validation: does the watchdog (1) not crash now, and (2) successfully
+  auto-reconnect via `watch.play()` under a PVR IPTV Simple session when the 403/EOF occurs.
