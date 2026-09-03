@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.jiotv" name="JioTV" version="2.3.17" provider-name="Dinesh">
+<addon id="plugin.video.jiotv" name="JioTV" version="2.3.18" provider-name="Dinesh">
     <requires>
         <import addon="xbmc.python" version="3.0.0" />
         <import addon="script.module.codequick" version="1.0.2" />
@@ -24,6 +24,11 @@
         <email>dineshsrinivasa@users.noreply.github.com</email>
         <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
         <news>
+	     [- 2.3.18 -]
+             [fixed] auto-recover live streams that stall/buffer forever (watchdog + re-resolve fresh stream)
+             [fixed] restored stable JioTV channel resolver (regression from upstream main.py change)
+             [added] new settings: Auto-recover stalled streams, Max reconnect attempts, Stall detection delay
+             [added] WATCHDOG debug logging for diagnosing playback issues
 	     [- 2.3.17 -]
              [fixed] stability improvements to prevent hang and crash
              [fixed] added timeout to network calls

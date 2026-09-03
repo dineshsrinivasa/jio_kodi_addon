@@ -10,6 +10,8 @@
 
 <br>
 
+> **⚠️ NOTICE:** This project is for **personal, testing, and educational purposes only**. It is **not** a commercial product and is **not** intended for distribution, sale, or any commercial use. Use at your own risk. No warranty or support is provided. The developer assumes no liability for how this add-on is used.
+
 ## Disclaimer
 
 This plugin is not officially commissioned/supported by Jio. The trademark "Jio" is registered by "Reliance Corporate IT Park Limited (RCITPL)"

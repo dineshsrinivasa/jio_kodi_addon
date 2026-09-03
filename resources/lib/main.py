@@ -56,6 +56,7 @@ from resources.lib.constants import (
     ADDON,
     ADDON_ID,
 )
+from resources.lib.reconnect import watchdog
 
 # additional imports
 import urlquick
@@ -70,10 +71,20 @@ import gzip
 import xml.etree.ElementTree as ET
 import os
 import json
+import threading
 
 # Root path of plugin
 
 monitor = Monitor()
+
+# Channel id groups used by the playback resolver.
+ZEE_RANGE = [
+    "5000", "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
+    "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019",
+    "5020", "5021", "5022", "5023", "5024", "5025", "5026",
+]
+DIRECT_IDS = ["154", "181", "182", "183", "289", "291", "471", "483"] + ZEE_RANGE
+ZEE_MAP = ["5016", "5017", "5023", "5024", "5025", "5026"]
 
 
 @Route.register
@@ -405,27 +416,15 @@ def show_epg(plugin, day, channel_id):
             )
 
 
-# Play live stream/ catchup according to params.
-# Also insures that user is logged in.
-@Resolver.register
-@isLoggedIn
-def play(
-    plugin, channel_id, showtime=None, srno=None, programId=None, begin=None, end=None
-):
-    # import web_pdb; web_pdb.set_trace()
-    # Script.notify("programId", programId)
-    # Script.notify("begin", programId)
-    # Script.notify("end", programId)
-    # Script.notify("srno", srno)
-    # Script.notify("showtime", showtime)
-    # Script.notify("channel_id", channel_id)
-    #headerszee = getZeeHeaders(host)   # zee headers
+def _resolve_stream(channel_id, showtime=None, srno=None, programId=None, begin=None, end=None):
+    """Build and return a normalized stream info dict for a channel.
+
+    This mirrors the URL/header construction previously done inline in play()
+    so that the stall-recovery watchdog can re-resolve a fresh stream (with a
+    fresh __hdnea__ token) on demand.
+    """
     sony_headers = getSonyHeaders()
     try:
-        is_helper = inputstreamhelper.Helper("mpd", drm="com.widevine.alpha")
-        hasIs = is_helper.check_inputstream()
-        if not hasIs:
-            return
         rjson = {"channel_id": int(channel_id), "stream_type": "Seek"}
         isCatchup = False
         if showtime and srno:
@@ -437,199 +436,129 @@ def play(
             rjson["begin"] = begin
             rjson["end"] = end
             Script.log(str(rjson), lvl=Script.INFO)
+
         headers = getHeaders()
         if not headers:
-            Script.notify("Login Error", "Session expired. Please login again")
-            return False
+            return None
         headers["channelid"] = str(channel_id)
         headers["srno"] = str(uuid4()) if "srno" not in rjson else rjson["srno"]
-        enableHost = Settings.get_boolean("enablehost")
-        
-        
-        # blindly setting zee channel id for test
-        
+
         zee_channels = {
             "5016": "https://z5ak-cmaflive.zee5.com/cmaf/live/2105525/ZeeAnmolCinemaELE/master.m3u8",
             "5017": "https://z5ak-cmaflive.zee5.com/cmaf/live/2105527/ZeeActionELE/master.m3u8",
             "5023": "https://z5ak-cmaflive.zee5.com/cmaf/live/2105261/ZEECHITRAMANDIRELE/master.m3u8",
             "5024": "https://z5ak-cmaflive.zee5.com/cmaf/live/2105526/ZeeAnmolELE/master.m3u8",
             "5025": "https://z5live-cf.zee5.com/out/v1/ZEE5_Live_Channels/Zee-Ganga-Zee-Anmol-Cinema-2-SD/master/master.m3u8",
-            "5026": "https://z5ak-cmaflive.zee5.com/cmaf/live/2105176/BigMagicELE/master.m3u8"
+            "5026": "https://z5ak-cmaflive.zee5.com/cmaf/live/2105176/BigMagicELE/master.m3u8",
         }
-        
-        
-        
 
+        host_map = {
+            "5016": "z5ak-cmaflive.zee5.com",
+            "5017": "z5ak-cmaflive.zee5.com",
+            "5023": "z5ak-cmaflive.zee5.com",
+            "5024": "z5ak-cmaflive.zee5.com",
+            "5025": "z5live-cf.zee5.com",
+            "5026": "z5ak-cmaflive.zee5.com",
+        }
+        zee_id_map = {
+            "5016": "0-9-zeeanmolcinema",
+            "5017": "0-9-zeeaction",
+            "5023": "0-9-394",
+            "5024": "0-9-zeeanmol",
+            "5025": "0-9-bigganga",
+            "5026": "0-9-bigmagic_1786965389",
+        }
 
-        if(channel_id in ["154", "181", "182", "183", "289", "291", "471","483", "5000", "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
-    "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019",
-    "5020", "5021", "5022","5023","5024","5025","5026"]):
+        resp = None
+        url = None
+        headerszee = None
+        m3u8Headers = None
+        onlyUrl = None
+        uriToUse = None
 
+        if channel_id in DIRECT_IDS:
             if channel_id in zee_channels:
-                if channel_id == "5016":
-                    zee_channelid = "0-9-zeeanmolcinema"
-                    host="z5ak-cmaflive.zee5.com"
-                elif channel_id == "5017":
-                    zee_channelid = "0-9-zeeaction"
-                    host="z5ak-cmaflive.zee5.com"
-                elif channel_id == "5023":
-                    zee_channelid = "0-9-394"
-                    host="z5ak-cmaflive.zee5.com"
-                elif channel_id == "5024":
-                    zee_channelid = "0-9-zeeanmol"
-                    host="z5ak-cmaflive.zee5.com"
-                elif channel_id == "5025":
-                    zee_channelid = "0-9-bigganga"
-                    host="z5live-cf.zee5.com"
-                elif channel_id == "5026":
-                    zee_channelid = "0-9-bigmagic_1786965389"
-                    host="z5ak-cmaflive.zee5.com"
-                else:
-                    zee_channelid = None
-                     
-                cook=zeeCookie(zee_channelid)
+                zee_channelid = zee_id_map.get(channel_id)
+                host = host_map.get(channel_id)
+                cook = zeeCookie(zee_channelid)
                 if not cook:
                     Script.notify("Zee Error", "Failed to get Zee channel cookie")
-                    return False
-                #getZeeHeaders(host)
-                headerszee=getZeeHeaders(host)
+                    return None
+                headerszee = getZeeHeaders(host)
                 base_url = zee_channels[channel_id]
-                onlyUrl = f"{base_url}{cook}"
-                url = onlyUrl
-            
-            
-                # Zee channels if else end
-
+                onlyUrl = url = "{0}{1}".format(base_url, cook)
+                cookie = url.split("?")[1] if "?hdntl=" in url else ""
+                uriToUse = onlyUrl
+                headers["cookie"] = cookie
             else:
-
                 if not sony_headers:
-
                     Script.notify("Error", "getSonyHeaders() returned None")
-
-                    return False
-
-
-
+                    return None
                 if "user-agent" not in sony_headers:
-
                     Script.notify("Error", "'user-agent' missing in Sony headers")
-
-                    return False
-
-                if(channel_id in ["154","471"]):  #sonysab 154 channel checking ids
-
-                    chan="471"
-
-                else:
-
-                    chan=str(channel_id)
-
+                    return None
+                chan = "471" if channel_id in ["154", "471"] else str(channel_id)
                 res = urlquick.post(
-
-                "https://jiotvapi.media.jio.com/playback/apis/v1/geturl?langId=6",
-
-                data="stream_type=Seek&channel_id="+chan,
-
-                verify=False,
-
-                headers=sony_headers,
-
-                max_age=-1,
-
-                )#471 sab
-
+                    "https://jiotvapi.media.jio.com/playback/apis/v1/geturl?langId=6",
+                    data="stream_type=Seek&channel_id={0}".format(chan),
+                    verify=False,
+                    headers=sony_headers,
+                    max_age=-1,
+                )
                 sonyheaders = sony_headers
-
                 sonyheaders["cookie"] = "__hdnea__" + res.json().get("result", "").split("__hdnea__")[-1]
-
                 sonyheaders.setdefault("user-agent", "jiotv")
-
                 sonyheaders = {k: str(v) for k, v in sonyheaders.items() if v}
-
+                resp = res.json()
+                onlyUrl = resp.get("result", "").split("?")[0].split("/")[-1]
+                cookie = "__hdnea__" + resp.get("result", "").split("__hdnea__")[-1]
+                headers["cookie"] = cookie
+                uriToUse = resp.get("result", "")
         else:
-
-            chan=str(channel_id)
+            enableHost = Settings.get_boolean("enablehost")
             res = urlquick.post(
-
-            "https://jiotvapi.media.jio.com/playback/apis/v1/geturl?langId=6",
-
-            data="stream_type=Seek&channel_id="+chan,
-
-            verify=False,
-
-            headers=sony_headers,
-
-            max_age=-1,
-
+                GET_CHANNEL_URL,
+                json=rjson,
+                verify=False,
+                headers=getChannelHeadersWithHost()
+                if enableHost
+                else getChannelHeaders(),
+                max_age=-1,
             )
-        # if res.status_code
-        if(channel_id not in ["5000", "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
-    "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019",
-    "5020", "5021", "5022","5023","5024","5025","5026"]):
             resp = res.json()
-        else:
-            pass
-        art = {}
-        if(channel_id not in ["5000", "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
-    "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019",
-    "5020", "5021", "5022","5023","5024","5025","5026"]):
             onlyUrl = resp.get("result", "").split("?")[0].split("/")[-1]
-        else:
-            pass
-        art["thumb"] = art["icon"] = IMG_CATCHUP + onlyUrl.replace(".m3u8", ".png")
-        #["5000", "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
-        # "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019",
-        #"5020", "5021", "5022","5023","5024","5025","5026"]
-    
-        if(channel_id in ["5016", "5017", "5023","5024","5025","5026"]):
-            cookie = url.split('?')[1] if '?hdntl=' in url else ''
-            uriToUse = onlyUrl
-        else:
             cookie = "__hdnea__" + resp.get("result", "").split("__hdnea__")[-1]
+            headers["cookie"] = cookie
             uriToUse = resp.get("result", "")
-        headers["cookie"] = cookie
-        
-        
+
+        art = {
+            "thumb": IMG_CATCHUP + onlyUrl.replace(".m3u8", ".png"),
+            "icon": IMG_CATCHUP + onlyUrl.replace(".m3u8", ".png"),
+        }
+
         qltyopt = Settings.get_string("quality")
         selectionType = "adaptive"
-        isMpd = Settings.get_boolean("usempd") and resp.get("mpd", False)
-        # Script.log("LOGGINANIMAX", lvl=Script.INFO)
-        # Script.log(str(resp), lvl=Script.INFO)
+        isMpd = Settings.get_boolean("usempd") and bool(resp) and bool(resp.get("mpd", False))
         if isMpd:
-            # is mpd url
             license_headers = headers
             license_headers["Content-type"] = urlencode("application/octet-stream")
-	    
-
-
-
-
             if Settings.get_boolean("mpdnotice"):
                 Script.notify(
                     "Notice!", "Using the Experimental MPD URL", icon=Script.NOTIFY_INFO
                 )
-            # Script.notify("mpd url", "notice")
             uriToUse = resp.get("mpd", "").get("result", "")
-            license_config = {
-                "license_server_url": resp.get("mpd", "").get("key", ""),
-                "headers": urlencode(license_headers),
-                "post_data": "H{SSM}",
-                "response_data": "",
-            }
         if qltyopt == "Ask-me":
             selectionType = "ask-quality"
         if qltyopt == "Manual":
             selectionType = "manual-osd"
         if not isMpd and not qltyopt == "Manual":
             m3u8Headers = {
-        "user-agent": "jiotv",
-        "cookie": headers["cookie"],
-        "content-type": "application/vnd.apple.mpegurl",
-        "Accesstoken": sony_headers["Accesstoken"]
+                "user-agent": "jiotv",
+                "cookie": headers["cookie"],
+                "content-type": "application/vnd.apple.mpegurl",
+                "Accesstoken": sony_headers["Accesstoken"],
             }
-            if(channel_id in ["5000", "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
-    "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019",
-    "5020", "5021", "5022","5023","5024","5025","5026"]):
+            if channel_id in ZEE_RANGE:
                 m3u8Res = urlquick.get(
                     uriToUse,
                     headers=headerszee,
@@ -639,14 +568,13 @@ def play(
                 )
             else:
                 m3u8Res = urlquick.get(
-                uriToUse,
-                headers=m3u8Headers,
-                verify=False,
-                max_age=-1,
-                raise_for_status=True,
-            )
+                    uriToUse,
+                    headers=m3u8Headers,
+                    verify=False,
+                    max_age=-1,
+                    raise_for_status=True,
+                )
             m3u8Headers = {k: str(v) for k, v in m3u8Headers.items() if v}
-            # Script.notify("m3u8url", m3u8Res.status_code)
             m3u8String = m3u8Res.text
             variant_m3u8 = m3u8.loads(m3u8String)
             if variant_m3u8.is_variant and (
@@ -660,68 +588,163 @@ def play(
                         uriToUse = uriToUse.split("?")[0].replace(onlyUrl, tmpurl)
                     else:
                         uriToUse = uriToUse.replace(onlyUrl, tmpurl.split("?")[0])
-                    #del headers["cookie"]
-                #else:
-                #    uriToUse = uriToUse.replace(
-                #        onlyUrl, tmpurl
-                #    )
-        Script.log(uriToUse, lvl=Script.INFO)
-        
-        if(channel_id in ["471", "154", "181", "182", "183", "289", "291", "483", "5000", "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
-    "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019",
-    "5020", "5021", "5022","5023","5024","5025","5026"]):
 
+        if isMpd:
+            license_key = (
+                "?" + urlencode("Content-type=application/octet-stream")
+                + "|" + urlencode(headers) + "|R{SSM}|"
+            )
+        else:
+            license_key = "|" + urlencode(headers) + "|R{SSM}|"
+
+        if channel_id in zee_channels:
+            direct_headers = headerszee
+        else:
+            direct_headers = m3u8Headers
+
+        info = {
+            "mode": "direct" if channel_id in DIRECT_IDS else "codequick",
+            "channel_id": str(channel_id),
+            "url": uriToUse,
+            "art": art,
+            "headers": headers,
+            "direct_headers": direct_headers,
+            "select_type": selectionType,
+            "isMpd": bool(isMpd),
+            "license_key": license_key,
+        }
+        Script.log(
+            "WATCHDOG: _resolve_stream OK channel=%s mode=%s url=%s"
+            % (channel_id, info["mode"], uriToUse),
+            lvl=Script.DEBUG,
+        )
+        return info
+    except Exception as e:
+        Script.log(
+            "WATCHDOG: _resolve_stream FAILED for channel %s: %s" % (channel_id, e),
+            lvl=Script.ERROR,
+        )
+        return None
+
+
+def _start_watchdog(channel_id, showtime=None, srno=None, programId=None, begin=None, end=None):
+    """Start the stall-recovery watchdog thread for the current playback session."""
+    try:
+        enable = Settings.get_boolean("reconnect")
+        if not enable:
+            Script.log("WATCHDOG: reconnect disabled by settings", lvl=Script.DEBUG)
+            return
+        try:
+            attempts = int(Settings.get_string("reconnect_attempts"))
+        except Exception:
+            attempts = 3
+        try:
+            stall = int(Settings.get_string("reconnect_stall"))
+        except Exception:
+            stall = 8
+        if attempts < 1:
+            attempts = 1
+        if stall < 3:
+            stall = 3
+
+        def refresh():
+            return _resolve_stream(channel_id, showtime, srno, programId, begin, end)
+
+        t = threading.Thread(
+            target=watchdog,
+            args=(str(channel_id), refresh, attempts, stall, True),
+            name="JioTV-Watchdog",
+        )
+        t.setDaemon(True)
+        t.start()
+        Script.log(
+            "WATCHDOG: watchdog thread started for channel %s"
+            % channel_id,
+            lvl=Script.DEBUG,
+        )
+    except Exception as e:
+        Script.log(
+            "WATCHDOG: failed to start watchdog: %s" % e,
+            lvl=Script.ERROR,
+        )
+
+
+# Play live stream/ catchup according to params.
+# Also insures that user is logged in.
+@Resolver.register
+@isLoggedIn
+def play(
+    plugin, channel_id, showtime=None, srno=None, programId=None, begin=None, end=None
+):
+    try:
+        is_helper = inputstreamhelper.Helper("mpd", drm="com.widevine.alpha")
+        hasIs = is_helper.check_inputstream()
+        if not hasIs:
+            return
+
+        info = _resolve_stream(channel_id, showtime, srno, programId, begin, end)
+        if not info:
+            return False
+
+        _start_watchdog(channel_id, showtime, srno, programId, begin, end)
+
+        if info["mode"] == "direct":
             dialog = xbmcgui.DialogProgress()
             dialog.create("Loading Stream", "Please wait... buffering...")
             xbmc.sleep(1500)
             dialog.close()
-            
-            listitem = xbmcgui.ListItem(path=uriToUse)
+
+            listitem = xbmcgui.ListItem(path=info["url"])
             listitem.setProperty("IsPlayable", "true")
             listitem.setProperty("inputstream", "inputstream.adaptive")
             listitem.setProperty("inputstream.adaptive.manifest_type", "hls")
-            if(channel_id in ["5000", "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
-    "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019",
-    "5020", "5021", "5022","5023","5024","5025","5026"]):
-                listitem.setProperty("inputstream.adaptive.stream_headers", urlencode(headerszee))
-                listitem.setProperty("inputstream.adaptive.manifest_headers", urlencode(headerszee))
-            else:
-                listitem.setProperty("inputstream.adaptive.stream_headers", urlencode(m3u8Headers))
-                listitem.setProperty("inputstream.adaptive.manifest_headers", urlencode(m3u8Headers))
+            dh = info.get("direct_headers")
+            if dh:
+                enc = urlencode(dh)
+                listitem.setProperty("inputstream.adaptive.stream_headers", enc)
+                listitem.setProperty("inputstream.adaptive.manifest_headers", enc)
             listitem.setMimeType("application/vnd.apple.mpegurl")
-            xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=True, listitem=listitem)
+            xbmcplugin.setResolvedUrl(
+                handle=int(sys.argv[1]), succeeded=True, listitem=listitem
+            )
             listitem.setContentLookup(False)
-            sony_channels = ["154", "289", "291", "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
-    "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018", "5019", "5020", "5021", "5022","5023","5024","5025","5026"]
-            callback_value = uriToUse if channel_id in sony_channels else None
-            
-            
-            xbmc.Player().play(uriToUse, listitem)
-            
+            sony_channels = [
+                "154", "289", "291",
+                "5001", "5002", "5003", "5004", "5005", "5006", "5007", "5008", "5009",
+                "5010", "5011", "5012", "5013", "5014", "5015", "5016", "5017", "5018",
+                "5019", "5020", "5021", "5022", "5023", "5024", "5025", "5026",
+            ]
+            callback_value = info["url"] if channel_id in sony_channels else None
+            xbmc.Player().play(info["url"], listitem)
+
             # Return dummy ListItem to avoid error popup
-            return Listitem().from_dict(**{"label": "Sony","art": art,"callback": callback_value,"properties": {},})
+            return Listitem().from_dict(
+                **{
+                    "label": "Sony",
+                    "art": info["art"],
+                    "callback": callback_value,
+                    "properties": {},
+                }
+            )
         else:
-            #kodiserver.stop_proxy_server()
-            pass
-        return Listitem().from_dict(
-            **{
-                "label": plugin._title,
-                "art": art,
-                "callback": uriToUse + "|verifypeer=false",
-                "properties": {
-                    "IsPlayable": True,
-                    "inputstream": "inputstream.adaptive",
-                    "inputstream.adaptive.stream_selection_type": selectionType,
-                    "inputstream.adaptive.chooser_resolution_secure_max": "4k",
-                    "inputstream.adaptive.stream_headers": urlencode(headers),
-                    "inputstream.adaptive.manifest_headers": urlencode(headers),
-                    "inputstream.adaptive.manifest_type": "mpd" if isMpd else "hls",
-                    "inputstream.adaptive.license_type": "drm",
-                    "inputstream.adaptive.license_key": "?"+urlencode("Content-type=application/octet-stream")+"|"+ urlencode(headers) + "|R{SSM}|" if isMpd
-                    else "|" + urlencode(headers) + "|R{SSM}|",
-                },
-            }
-        )
+            return Listitem().from_dict(
+                **{
+                    "label": plugin._title,
+                    "art": info["art"],
+                    "callback": info["url"] + "|verifypeer=false",
+                    "properties": {
+                        "IsPlayable": True,
+                        "inputstream": "inputstream.adaptive",
+                        "inputstream.adaptive.stream_selection_type": info["select_type"],
+                        "inputstream.adaptive.chooser_resolution_secure_max": "4k",
+                        "inputstream.adaptive.stream_headers": urlencode(info["headers"]),
+                        "inputstream.adaptive.manifest_headers": urlencode(info["headers"]),
+                        "inputstream.adaptive.manifest_type": "mpd" if info["isMpd"] else "hls",
+                        "inputstream.adaptive.license_type": "drm",
+                        "inputstream.adaptive.license_key": info["license_key"],
+                    },
+                }
+            )
     except Exception as e:
         Script.notify("headers - Error while playback , Check connection", e)
         return False

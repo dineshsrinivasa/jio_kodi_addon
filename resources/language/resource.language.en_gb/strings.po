@@ -216,3 +216,15 @@ msgstr ""
 msgctxt "#33049"
 msgid "Enable host header"
 msgstr ""
+
+msgctxt "#33050"
+msgid "Auto-recover stalled streams"
+msgstr ""
+
+msgctxt "#33051"
+msgid "Max reconnect attempts"
+msgstr ""
+
+msgctxt "#33052"
+msgid "Stall detection delay (seconds)"
+msgstr ""

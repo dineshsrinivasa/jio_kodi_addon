@@ -1,3 +1,8 @@
+[- 2.3.18 -]
+[fixed] auto-recover live streams that stall/buffer forever (watchdog + re-resolve fresh stream)
+[fixed] restored stable JioTV channel resolver (regression from upstream main.py change)
+[added] new settings: Auto-recover stalled streams, Max reconnect attempts, Stall detection delay
+[added] WATCHDOG debug logging for diagnosing playback issues
 [- 2.3.16 -]
 [added] improved zee channels and removed proxy way for faster. No crash
 [- 2.3.15 -]
