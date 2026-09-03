@@ -74,6 +74,33 @@ dineshsrinivasa/jio_kodi_addon is a fork of kiranreddyrebel).
 4. Search the log for `WATCHDOG:` entries — they show stall detection + reconnect attempts
    (channel id, cur/last time, attempt N/M, success/failure).
 
+## Installation / update troubleshooting (IMPORTANT - session continuation)
+- The GitHub Pages repo is LIVE and correct as of the 2.3.18 push:
+  - `https://dineshsrinivasa.github.io/jio_kodi_addon/addons.xml` -> contains version 2.3.18.
+  - Served `addons.xml.md5` = `14d2ad21ddaf6d4127724e1a809ef55a` (matches local copy => not stale CDN).
+  - `https://dineshsrinivasa.github.io/jio_kodi_addon/Zips/plugin.video.jiotv/plugin.video.jiotv-2.3.18.zip` -> HTTP 200.
+  => Server side is fine; any "still 2.3.17" is Kodi's LOCAL cache, NOT the repo.
+- HOWEVER the user reported: installing `plugin.video.jiotv-2.3.18.zip` manually fails with
+  "invalid structure". ROOT CAUSE FOUND (this session):
+  - The zip built earlier via PowerShell/`Compress-Archive` produced zip entries with **backslash
+    path separators** (`plugin.video.jiotv\addon.py`). Kodi (non-Windows unzip logic) expects
+    **forward slashes** (`plugin.video.jiotv/addon.py`) and rejects backslash entries as
+    "invalid structure".
+  - FIX: rebuilt the zip with .NET `System.IO.Compression.ZipArchive`, writing each entry with an
+    explicit forward-slash name under the top folder `plugin.video.jiotv/`. Rebuilt
+    `Zips/plugin.video.jiotv/plugin.video.jiotv-2.3.18.zip` has 17 entries, all forward-slash,
+    embedded addon.xml is version 2.3.18. COMMITTED + PUSHED (re-push 2.3.18 zip).
+  - LESSON: NEVER build Kodi addon zips with PowerShell `Compress-Archive` (backslashes).
+    Always build with .NET ZipArchive + forward-slash entry names.
+- User's install method = UNKNOWN (asked; not yet answered as of this writing). If they installed
+  manually via zip originally, the repository auto-update will NEVER touch it -> they MUST reinstall
+  manually with the corrected zip. Reconfirm with the user which method they used.
+- Next step for user: retry "Install from zip file" with the corrected zip (download from the URL
+  above), OR if repo-installed, do Add-ons > Check for updates / disable+enable the Dinesh repo /
+  delete `%APPDATA%\Kodi\userdata\Database\addons33.db` (Kodi closed) to clear the cached addons.xml.
+- To actually validate the watchdog fix end-to-end: enable Kodi debug logging, reproduce a
+  buffer-stall on a normal channel, grab `kodi.log`, and check `WATCHDOG:` lines.
+
 ## Future / known remaining issues
 - The convoluted `_resolve_stream` still mirrors upstream Zee/Sony quirks; a full cleanup of the
   `ZEE_RANGE`/`ZEE_MAP`/`DIRECT_IDS` gating is desirable later. Zee/Sony were intentionally left
