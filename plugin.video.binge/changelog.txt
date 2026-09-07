@@ -112,3 +112,11 @@ v1.0.0 (2026-09-07)
 [added] DASH + Widevine playback with per-channel ls_session license token
 [added] M3U playlist generation for PVR IPTV Simple Client
 [added] Persistent+encoded session storage, channel list caching, reload action
+v1.0.14 (2026-09-07)
+--------------------
+[fixed] CRITICAL: OTT browse crashed with "from_dict() missing 1 required positional argument: 'callback'" - _unavailable_item() was calling Listitem.from_dict() without a callback (codequick 1.0.3 requires callback). Now builds a bare Listitem and sets .label/.art manually, matching the working pattern used elsewhere in the file.
+[fixed] OTT browse menu rewritten to use the confirmed-working hierarchy endpoint (DONGLE_HOMEPAGE) + rail content endpoint with VRNNRAILFILTER rule, replacing the broken /page/X/BINGE_ANYWHERE and seeAll endpoints that crash server-side with "Cannot read properties of undefined (reading 'startsWith')"
+[fixed] OTT items no longer show GetDirectory crash: unavailable items are now non-navigable (no callback attached)
+[added] Browse All Rails: lists all home-page rails from hierarchy, each expandable to content
+[added] collect_rails now fetches from hierarchy endpoint (single request) instead of scanning multiple page endpoints
+[changed] getRail uses VRNNRAILFILTER (confirmed working) instead of VRPRIMERAILFILTER

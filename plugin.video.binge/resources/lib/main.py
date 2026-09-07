@@ -19,8 +19,10 @@ def _default_art():
 
 
 def _unavailable_item(msg):
-    """Return a single non-navigable explanatory item (no callback → no GetDirectory crash)."""
-    li = Listitem.from_dict(label=msg, art=_default_art())
+    """Return a single non-navigable explanatory item (avoids GetDirectory crash)."""
+    li = Listitem()
+    li.label = msg
+    li.art.icon = ICON
     return [li]
 
 
@@ -167,88 +169,99 @@ def _ott_img(item):
 
 @Route.register
 def ott(plugin):
-    """OTT (series/movies) browse menu: Kannada-first + partner + search."""
+    """OTT (series/movies) browse menu: Kannada-first + partner apps + sections."""
     yield Listitem.from_dict(**{
         "label": "Kannada (Movies + Series)",
         "art": _default_art(),
         "callback": Route.ref("/resources/lib/main:ott_kannada"),
     })
     yield Listitem.from_dict(**{
-        "label": "Zee5 (Movies + Series)",
+        "label": "Movies",
+        "art": _default_art(),
+        "callback": Route.ref("/resources/lib/main:ott_section"),
+        "params": {"page": "DONGLE_OTHER_6", "title": "Movies"},
+    })
+    yield Listitem.from_dict(**{
+        "label": "TV Shows",
+        "art": _default_art(),
+        "callback": Route.ref("/resources/lib/main:ott_section"),
+        "params": {"page": "DONGLE_OTHER_5", "title": "TV Shows"},
+    })
+    yield Listitem.from_dict(**{
+        "label": "Zee5",
         "art": _default_art(),
         "callback": Route.ref("/resources/lib/main:ott_provider"),
         "params": {"provider": "Zee5"},
     })
     yield Listitem.from_dict(**{
-        "label": "JioHotstar (Movies + Series)",
+        "label": "JioHotstar",
         "art": _default_art(),
         "callback": Route.ref("/resources/lib/main:ott_provider"),
         "params": {"provider": "JioHotstar"},
+    })
+    yield Listitem.from_dict(**{
+        "label": "Browse All Rails (Home)",
+        "art": _default_art(),
+        "callback": Route.ref("/resources/lib/main:ott_section"),
+        "params": {"page": "DONGLE_HOMEPAGE", "title": "Home Rails"},
     })
     yield Listitem.from_dict(**{
         "label": "Search OTT  /  Series",
         "art": _default_art(),
         "callback": Route.ref("/resources/lib/main:ott_search"),
     })
-    yield Listitem.from_dict(**{
-        "label": "Browse All Rails",
-        "art": _default_art(),
-        "callback": Route.ref("/resources/lib/main:ott_browse"),
-    })
-    yield Listitem.from_dict(**{
-        "label": "Movies (Top Picks)",
-        "art": _default_art(),
-        "callback": Route.ref("/resources/lib/main:ott_rail"),
-        "params": {"rail": "MOVIES"},
-    })
-    yield Listitem.from_dict(**{
-        "label": "TV Shows (Top Picks)",
+
+
+def _rail_sub(item_label, rail_id):
+    """A folder item that opens a rail's content."""
+    return Listitem.from_dict(**{
+        "label": item_label,
         "art": _default_art(),
         "callback": Route.ref("/resources/lib/main:ott_rail"),
-        "params": {"rail": "TV_SHOWS"},
+        "params": {"rail": str(rail_id)},
     })
 
 
-def _ott_kannada_rail():
-    """Locate a Kannada language rail from the hierarchy, else None."""
-    return vod.find_rail_by_kind("language", "kannada")
+def _section_listing(plugin, page, title):
+    """List the content rails of a browse page as sub-folders."""
+    rails = vod.list_rails(page)
+    if not rails:
+        Script.notify(ADDON_ID, "%s page unavailable (session may be required)." % title)
+        yield from _unavailable_item("%s page unavailable - session/network required, retry." % title)
+        return
+    for rid, rtitle in rails:
+        yield _rail_sub(rtitle, rid)
 
 
-def _ott_provider_rail(provider):
-    """Locate a provider rail from the hierarchy by name, else None."""
-    return vod.find_rail_by_kind("provider", provider)
+@Route.register
+def ott_section(plugin, page, title):
+    """Generic section listing (Movies / TV Shows / Home)."""
+    yield from _section_listing(plugin, page, title)
 
 
 @Route.register
 def ott_kannada(plugin):
-    """Kannada-only on-demand content (movies + series)."""
-    items = []
-    rail = _ott_kannada_rail()
-    if rail:
-        items = vod.normalize_items(vod._items(vod.getRail(rail)))
-    if not items:
-        items = vod.filter_items(vod.normalize_items(vod._items(vod.search("kannada"))), lang="kannada")
-    if not items:
-        Script.notify(ADDON_ID, "No Kannada content found (check login / network).")
+    """Kannada rails discovered from the Regional + Zee5 pages."""
+    yielded = False
+    rid = vod.find_rail_on_page("DONGLE_REGIONAL", "kannada")
+    if rid:
+        yield _rail_sub("Trending In Kannada (Regional)", rid)
+        yielded = True
+    rid2 = vod.find_rail_on_page("DONGLE_ZEE5", "kannada")
+    if rid2:
+        yield _rail_sub("Best In Kannada (Zee5)", rid2)
+        yielded = True
+    if not yielded:
+        Script.notify(ADDON_ID, "No Kannada rail found (check login / network).")
         yield from _unavailable_item("No Kannada content found - check login/network, retry.")
         return
-    yield from _ott_items(plugin, items, seasons=True)
 
 
 @Route.register
 def ott_provider(plugin, provider):
-    """Content from a single partner app (e.g. ZEE5, JioHotstar)."""
-    items = []
-    rail = _ott_provider_rail(provider)
-    if rail:
-        items = vod.normalize_items(vod._items(vod.getRail(rail)))
-    if not items:
-        items = vod.filter_items(vod.normalize_items(vod._items(vod.search(provider))), provider=provider)
-    if not items:
-        Script.notify(ADDON_ID, "No %s content found (check login / network)." % provider)
-        yield from _unavailable_item("No %s content found - check login/network, retry." % provider)
-        return
-    yield from _ott_items(plugin, items, seasons=True)
+    """Partner app sections (Zee5 / JioHotstar): list the app's content rails."""
+    page = vod.provider_page(provider)
+    yield from _section_listing(plugin, page, provider)
 
 
 @Route.register
@@ -265,33 +278,9 @@ def ott_search(plugin):
 
 
 @Route.register
-def ott_browse(plugin):
-    """Browse all rails from the hierarchy (home page)."""
-    rails = vod.collect_rails()
-    if not rails:
-        Script.notify(ADDON_ID, "Browse page unavailable (session may be required).")
-        yield from _unavailable_item("Browse page unavailable - session/network required, retry.")
-        return
-    for r in rails:
-        yield Listitem.from_dict(**{
-            "label": r["title"],
-            "art": _default_art(),
-            "callback": Route.ref("/resources/lib/main:ott_rail"),
-            "params": {"rail": r["rail"]},
-        })
-
-
-@Route.register
 def ott_rail(plugin, rail):
-    """List a rail's content (by id or a known section key)."""
-    rail_id = rail
-    if not rail_id.isdigit():
-        rail_id = vod.find_rail_by_kind("category", rail)
-        if not rail_id:
-            Script.notify(ADDON_ID, "Rail '%s' not found." % rail)
-            yield from _unavailable_item("Rail '%s' not found." % rail)
-            return
-    items = vod.normalize_items(vod._items(vod.getRail(rail_id)))
+    """List a rail's content (by id)."""
+    items = vod.normalize_items(vod._items(vod.getRail(rail)))
     if not items:
         Script.notify(ADDON_ID, "Rail empty/unavailable.")
         yield from _unavailable_item("Rail empty/unavailable - retry.")
@@ -318,17 +307,32 @@ def _ott_items(plugin, items, seasons=False):
             li["callback"] = Route.ref("/resources/lib/main:ott_item")
             li["params"] = {"contentId": cid}
         else:
-            li["callback"] = Route.ref("/resources/lib/main:ott_notice")
-            li["params"] = {"title": li["label"]}
-        yield Listitem.from_dict(**li)
+            li.pop("callback", None)
+            li.pop("params", None)
+        yield Listitem.from_dict(**li) if li.get("callback") else _non_nav_item(li["label"], li.get("art", {}), li["info"])
 
 
-@Script.register
-def ott_notice(plugin=None, title=""):
-    Script.notify(ADDON_ID,
-                  "OTT playback requires the partner DRM API which is not public; "
-                  "this build delivers OTT catalogue browsing. "
-                  "Live channels play via All Channels / Zee TV.")
+def _non_nav_item(label, art, info=None):
+    """Non-navigable display-only Listitem."""
+    item = Listitem()
+    item.label = _safe_str(label)
+    item.art.thumb = art.get("thumb") or ""
+    item.art.icon = art.get("icon") or ICON
+    item.art.fanart = art.get("fanart") or ""
+    if info:
+        if info.get("title"):
+            item.info.title = info.get("title")
+        if info.get("studio"):
+            item.info.studio = info.get("studio")
+        item.info.mediatype = "video"
+    return item
+
+
+def _safe_str(v):
+    try:
+        return str(v)
+    except Exception:
+        return ""
 
 
 @Route.register
@@ -342,11 +346,7 @@ def ott_item(plugin, contentId):
         if fig:
             yield from _ott_items(plugin, fig)
         else:
-            yield Listitem.from_dict(**{
-                "label": "No seasons found - title may still be live-stream TBD",
-                "art": _default_art(),
-                "callback": Route.ref("/resources/lib/main:ott_notice"),
-            })
+            yield from _unavailable_item("No seasons found - title is browse-only (partner DRM not public).")
         return
     for s in seasons:
         sid = s.get("id") or s.get("seasonId") or s.get("contentId")

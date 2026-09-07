@@ -125,17 +125,55 @@ def _hierarchy_rails(page="DONGLE_HOMEPAGE"):
     return []
 
 
-def getRail(rail_id, limit=100, provider=None):
-    """Fetch rail content by rail id. Uses VRNNRAILFILTER (confirmed working)."""
+_SKIP_SOURCES = ("HERO_BANNER", "MID_SCROLL_BANNER", "LIVE_EVENT_BANNER", "SPECIAL_BANNER_RAIL",
+                 "CONTINUE_WATCHING", "WATCHLIST")
+
+
+def list_rails(page="DONGLE_HOMEPAGE", skip_banners=True):
+    """List the rails of a browse page as [(rail_id, title), ...]."""
+    out = []
+    seen = set()
+    for it in _hierarchy_rails(page):
+        rid = it.get("railId") or it.get("id")
+        title = (it.get("railTitle") or it.get("title") or it.get("name") or "").strip()
+        src = it.get("sectionSource") or ""
+        if rid is None or not title or str(rid) in seen:
+            continue
+        if skip_banners and src and any(src.startswith(s) or src == s for s in _SKIP_SOURCES):
+            continue
+        seen.add(str(rid))
+        out.append((str(rid), title))
+    return out
+
+
+def find_rail_on_page(page, subtitle):
+    """Find a rail on a browse page whose title contains subtitle (case-insensitive)."""
+    sub = subtitle.lower()
+    for rid, title in list_rails(page, skip_banners=False):
+        if sub in title.lower():
+            return rid
+    return None
+
+
+def provider_page(provider):
+    """Map a partner-app name to its DONGLE_* hierarchy page."""
+    key = provider.lower().replace(" ", "").replace("_", "")
+    if key in ("jiohotstar", "hotstar"):
+        return "DONGLE_HOTSTAR"
+    if key == "zee5":
+        return "DONGLE_ZEE5"
+    return "DONGLE_" + key.upper()
+
+
+def getRail(rail_id, limit=100):
+    """Fetch rail content by rail id. VRNNRAILFILTER + userSelectedApps=All are required."""
     params = {
         "id": rail_id,
         "limit": limit,
+        "userSelectedApps": "All",
         "allowBingeRepositioning": "true",
     }
-    extra = {"rule": "VRNNRAILFILTER"}
-    if provider:
-        extra["userSelectedApps"] = provider
-    return _get("homescreen-client/api/v3/rail", params=params, extra_headers=extra)
+    return _get("homescreen-client/api/v3/rail", params=params, extra_headers={"rule": "VRNNRAILFILTER"})
 
 
 def getSeeAll(rail_id, offset=0, limit=100):
@@ -161,51 +199,6 @@ def getSeasons(content_id):
 
 def getContentInfo(content_id):
     return _get("content-subscriber-detail/api/content/info/" + str(content_id))
-
-
-# ------------------------------------------------------------ discovery ------
-_LANGS = {"kannada", "hindi", "tamil", "telugu", "malayalam", "marathi",
-          "bengali", "punjabi", "gujarati", "english", "odia", "bhojpuri"}
-_PROVIDERS = {"zee5", "jiohotstar", "sonyliv", "amazon", "prime", "apple",
-              "discovery", "aha", "netflix", "sunnxt", "hungama", "mx",
-              "lionsgate", "shemaroo", "fancode", "bbc", "ultra", "epic",
-              "chaupal", "namma", "playflix", "manorama", "waves", "stage"}
-
-
-def collect_rails(page="DONGLE_HOMEPAGE"):
-    """Collect (title, rail_id, kind) rails from the hierarchy endpoint.
-
-    kind is determined by title analysis: 'language', 'provider', or 'category'.
-    """
-    found = {}
-    for it in _hierarchy_rails(page):
-        title = (it.get("railTitle") or it.get("title") or it.get("name") or "").strip()
-        rid = it.get("railId") or it.get("id")
-        if not title or rid is None or str(rid) in found:
-            continue
-        lw = title.lower()
-        kind = "category"
-        for l in _LANGS:
-            if l in lw:
-                kind = "language"
-                break
-        if kind == "category":
-            for p in _PROVIDERS:
-                if p in lw.replace(" ", ""):
-                    kind = "provider"
-                    break
-        found[str(rid)] = {"title": title, "rail": str(rid), "kind": kind,
-                           "provider": it.get("provider") or ""}
-    return list(found.values())
-
-
-def find_rail_by_kind(kind, name):
-    """Find a rail matching kind + name substring (case-insensitive)."""
-    lw = name.lower().replace(" ", "")
-    for r in collect_rails():
-        if r["kind"] == kind and lw in r["title"].lower().replace(" ", ""):
-            return r["rail"]
-    return None
 
 
 # ---------------------------------------------------------------- items ------
@@ -252,7 +245,9 @@ def normalize_items(items):
         title = (content.get("title") or content.get("name")
                  or it.get("title") or it.get("name") or "")
         img = (content.get("imageUrl") or content.get("image")
-               or it.get("imageUrl") or it.get("image") or "")
+               or content.get("posterImage") or content.get("boxCoverImage")
+               or it.get("imageUrl") or it.get("image")
+               or it.get("posterImage") or it.get("boxCoverImage") or "")
         provider = content.get("provider") or it.get("provider") or ""
         ctype = it.get("railType") or content.get("contentType") or it.get("contentType") or ""
         providerContentId = content.get("providerContentId") or it.get("providerContentId")
