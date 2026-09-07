@@ -1,6 +1,11 @@
 Changelog
 =========
 
+v1.0.6 (2026-09-07)
+-------------------
+[fixed] Login/OTP APIs updated to the current Tata Play web platform (tm.tapi.videoready.tv) - OTP was returning 404
+        OTP: POST .../v2/generate/otp | SID lookup: POST .../v2/subscriberLookup | Login: POST .../v3/login/ott
+
 v1.0.5 (2026-09-07)
 -------------------
 [fixed] CRITICAL: "Script.run() AttributeError" - addon entry now calls codequick's run correctly (matched jiotv)

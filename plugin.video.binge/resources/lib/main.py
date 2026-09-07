@@ -97,7 +97,7 @@ def login_flow(plugin):
                 Script.notify(ADDON_ID, "No Binge subscriber found for this number.")
                 return False
             Settings.set_string("sid", str(sid))
-        resp = utils.generateOTP(rmn)
+        resp = utils.generateOTP(rmn, sid)
         if resp.get("code") != 0:
             Script.notify(ADDON_ID, "OTP failed: %s" % (resp.get("message") or resp.get("msg")))
             return False
@@ -370,7 +370,7 @@ def sendotp(plugin):
             sid = utils.lookupSid(rmn)
             if sid:
                 Settings.set_string("sid", sid)
-        resp = utils.generateOTP(rmn)
+        resp = utils.generateOTP(rmn, sid)
         if resp.get("code") == 0:
             Script.notify(ADDON_ID, "OTP sent. Enter it below and tap Verify.")
         else:

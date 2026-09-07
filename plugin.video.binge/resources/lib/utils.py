@@ -143,11 +143,23 @@ def isLoggedIn():
 
 
 # -------------------------------------------------------------------- login ---
-def generateOTP(rmn):
+def _web_headers():
+    """Headers for the watch.tataplay.com web login endpoints (tm.tapi host)."""
+    return {
+        "Content-Type": "application/json",
+        "User-Agent": constants.WEB_USER_AGENT,
+        "device_details": constants.WEB_DEVICE_DETAILS,
+        "origin": "https://watch.tataplay.com",
+        "referer": "https://watch.tataplay.com/",
+    }
+
+
+def generateOTP(rmn, sid):
     try:
-        resp = urlquick.get(constants.OTP_RMN_URL.format(rmn=rmn),
-                            headers=get_headers(auth=True),
-                            verify=False, max_age=-1, raise_for_status=False)
+        resp = urlquick.post(constants.OTP_RMN_URL,
+                             json={"sid": str(sid).strip(), "rmn": str(rmn).strip()},
+                             headers=_web_headers(),
+                             verify=False, max_age=-1, raise_for_status=False)
         data = resp.json()
         log("generateOTP: status=%s code=%s msg=%s" %
             (resp.status_code, data.get("code"), (data.get("message") or data.get("msg"))))
@@ -159,17 +171,16 @@ def generateOTP(rmn):
 
 def lookupSid(rmn):
     try:
-        resp = urlquick.get(constants.SID_LOOKUP_URL.format(rmn=rmn),
-                            headers=get_headers(auth=True),
-                            verify=False, max_age=-1, raise_for_status=False)
+        resp = urlquick.post(constants.SID_LOOKUP_URL,
+                             json={"rmn": str(rmn).strip()},
+                             verify=False, max_age=-1, raise_for_status=False)
         data = resp.json()
-        code = data.get("code")
-        log("lookupSid: status=%s code=%s" % (resp.status_code, code))
-        if code == 0:
-            data = data.get("data") or {}
-            sidList = data.get("sidList") or []
-            if sidList:
-                return sidList[0].get("sid")
+        log("lookupSid: status=%s code=%s msg=%s" %
+            (resp.status_code, data.get("code"), (data.get("message") or data.get("msg"))))
+        sidList = (data.get("data") or {}).get("sidList") or []
+        if isinstance(sidList, list) and sidList:
+            sid = sidList[0].get("sid") if isinstance(sidList[0], dict) else sidList[0]
+            return str(sid)
         return None
     except Exception:
         log_exc("lookupSid")
@@ -185,13 +196,14 @@ def login_otp(rmn, sid, otp):
     }
     try:
         resp = urlquick.post(constants.LOGIN_URL, json=payload,
-                             headers=get_headers(auth=True),
+                             headers=_web_headers(),
                              verify=False, max_age=-1, raise_for_status=False)
         data = resp.json()
     except Exception:
         log_exc("login_otp request")
         return "network/parse error (see log)"
-    log("login_otp: status=%s code=%s" % (resp.status_code, data.get("code")))
+    log("login_otp: status=%s code=%s msg=%s" %
+        (resp.status_code, data.get("code"), (data.get("message") or data.get("msg"))))
     if data.get("code") == 0:
         d = data.get("data") or {}
         token = d.get("accessToken")
