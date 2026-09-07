@@ -99,7 +99,7 @@
         </extension>
     </addon>
 
-    <addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.9" provider-name="Dinesh">
+    <addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.10" provider-name="Dinesh">
         <requires>
             <import addon="xbmc.python" version="3.0.0" />
             <import addon="script.module.codequick" version="1.0.2" />
@@ -117,6 +117,8 @@
             <license>MIT</license>
             <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
 <news>
+                [- 1.0.10 -]
+                [fixed] Login: session token now extracted correctly (login response uses "userAuthenticateToken", extraction is case-insensitive) - login succeeded server-side but the session was never saved; also fixed Settings.set_string / Script.open_settings crashes in codequick
                 [- 1.0.9 -]
                 [fixed] Login: subscriber/details now sends the missing platform: BINGE_ANYWHERE header (was code 400 "Missing request head") so account baId is returned - fixes "Null or empty ba id" on the update user login step
                 [- 1.0.8 -]

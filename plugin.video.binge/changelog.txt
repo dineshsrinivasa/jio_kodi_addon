@@ -1,8 +1,17 @@
 Changelog
-=========
+========
+
+v1.0.10 (2026-09-07)
+--------------------
+[fixed] Login: the successful login response carries the session under "userAuthenticateToken" (not accessToken),
+        and codequick's Settings/Script classes have no set_string/open_settings attributes - so the new session
+        was never saved (login actually succeeded server-side) and in-add-on login crashed. Token extraction is
+        now case-insensitive + userAuthenticateToken-aware; Settings.set_string -> Script.setting[...];
+        Script.open_settings -> Addon.OpenSettings builtin.
+        Verified: update/exist/user returns code 0 "Logged in successfully." with baId=1010094715,
+        bingeSubscriberId=2075157065, profileId=VR_63... for the non-DTH account.
 
 v1.0.9 (2026-09-07)
--------------------
 [fixed] Login: subscriber/details call was missing the platform: BINGE_ANYWHERE header -> server returned code 400
         "Missing request head", so the account baId was never fetched -> "Null or empty ba id" on update/exist/user.
         Header added; baId + dthStatus + subscriberId now logged for diagnosis.

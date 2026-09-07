@@ -341,7 +341,8 @@ def login_otp(rmn, sid=None, otp=None):
 
 
 def _deep(data, *keys):
-    """Walk data (dicts/lists) collecting the first non-empty value for any of keys."""
+    """Walk data (dicts/lists) collecting the first non-empty value for any of keys (case-insensitive)."""
+    keys = tuple(k.lower() for k in keys)
     if isinstance(data, dict):
         for k, v in data.items():
             if k.lower() in keys and v not in (None, "", []):
@@ -360,7 +361,7 @@ def _deep(data, *keys):
 
 def _bm_session_from(data, rmn):
     """Extract a usable session dict from the create/update login response."""
-    token = _deep(data, "accessToken", "access_token", "token", "ssoToken", "authToken")
+    token = _deep(data, "accessToken", "access_token", "token", "ssoToken", "authToken", "userAuthenticateToken")
     if not token:
         return None
     entitlements = _deep(data, "entitlements", "packages", "pkgIds") or []

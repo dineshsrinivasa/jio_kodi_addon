@@ -89,7 +89,7 @@ def login_flow(plugin):
         if not rmn:
             return False
         rmn = str(rmn).strip()
-        Settings.set_string("rmn", rmn)
+        Script.setting["rmn"] = rmn
         resp = utils.generateOTP(rmn)
         msg = resp.get("message") or resp.get("msg")
         if resp.get("code") == -1 or (resp.get("code") not in (None, 0) and msg and "success" not in str(msg).lower()):
@@ -349,7 +349,7 @@ def play(plugin, channel_id):
 # ------------------------------------------------------ settings actions ----
 @Script.register
 def login(plugin):
-    Script.open_settings()
+    xbmc.executebuiltin("Addon.OpenSettings(%s)" % ADDON_ID)
 
 
 @Script.register
