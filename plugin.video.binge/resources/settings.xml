@@ -20,4 +20,8 @@
     <setting id="reload" type="action" label="Reload channel list" action="RunPlugin(plugin://plugin.video.binge/resources/lib/main/reload/)" option="close"/>
   </category>
 
+  <category label="Diagnostics">
+    <setting id="uploadlog" type="action" label="Upload kodi.log for debugging" action="RunPlugin(plugin://plugin.video.binge/resources/lib/main/uploadlog/)" option="close"/>
+  </category>
+
 </settings>

@@ -1,6 +1,12 @@
 Changelog
 =========
 
+v1.0.2 (2026-09-07)
+-------------------
+[added] "Upload kodi.log for debugging" (Settings > Diagnostics and add-on menu) - posts kodi.log to paste.rs, shows the share link
+[added] Detailed BINGE log lines for login / channel list / channel detail / token service / OTT API / playback
+[fixed] Login error handling - failures are logged and reported instead of a silent crash
+
 v1.0.1 (2026-09-07)
 -------------------
 [fixed] Settings use the classic Kodi schema so Account/Login options show on all versions

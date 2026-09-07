@@ -2,6 +2,10 @@
 # Tata Play Binge addon: routing + playback
 from urllib.parse import urlencode
 
+import xbmc
+import xbmcvfs
+import requests
+from xbmcgui import Dialog
 from codequick import Route, Resolver, Listitem, Script
 from codequick.script import Settings
 from codequick.utils import keyboard
@@ -70,36 +74,48 @@ def root(plugin):
                 "callback": Route.ref("/resources/lib/main:logout"),
             }
         )
+    yield Listitem.from_dict(
+        **{
+            "label": "Upload kodi.log for debugging",
+            "art": _default_art(),
+            "callback": Route.ref("/resources/lib/main:uploadlog"),
+        }
+    )
 
 
 @Route.register
 def login_flow(plugin):
     """In-add-on OTP login: RMN -> auto SID -> send OTP -> verify."""
-    rmn = keyboard("Enter your Tata Play Binge registered mobile number")
-    if not rmn:
-        return False
-    rmn = str(rmn).strip()
-    Settings.set_string("rmn", rmn)
-    sid = (Settings.get_string("sid") or "").strip()
-    if not sid:
-        sid = utils.lookupSid(rmn)
-        if not sid:
-            Script.notify(ADDON_ID, "No Binge subscriber found for this number.")
+    try:
+        rmn = keyboard("Enter your Tata Play Binge registered mobile number")
+        if not rmn:
             return False
-        Settings.set_string("sid", str(sid))
-    resp = utils.generateOTP(rmn)
-    if resp.get("code") != 0:
-        Script.notify(ADDON_ID, "OTP failed: %s" % (resp.get("message") or resp.get("msg")))
+        rmn = str(rmn).strip()
+        Settings.set_string("rmn", rmn)
+        sid = (Settings.get_string("sid") or "").strip()
+        if not sid:
+            sid = utils.lookupSid(rmn)
+            if not sid:
+                Script.notify(ADDON_ID, "No Binge subscriber found for this number.")
+                return False
+            Settings.set_string("sid", str(sid))
+        resp = utils.generateOTP(rmn)
+        if resp.get("code") != 0:
+            Script.notify(ADDON_ID, "OTP failed: %s" % (resp.get("message") or resp.get("msg")))
+            return False
+        otp = keyboard("Enter the OTP sent to +91 %s" % rmn)
+        if not otp:
+            return False
+        error = utils.login_otp(rmn, sid, str(otp).strip())
+        if error:
+            Script.notify(ADDON_ID, "Login failed: %s" % error)
+            return False
+        Script.notify(ADDON_ID, Script.localize(32007))
         return False
-    otp = keyboard("Enter the OTP sent to +91 %s" % rmn)
-    if not otp:
+    except Exception:
+        utils.log_exc("login_flow")
+        Script.notify(ADDON_ID, "Login failed - see kodi.log for details.")
         return False
-    error = utils.login_otp(rmn, sid, str(otp).strip())
-    if error:
-        Script.notify(ADDON_ID, "Login failed: %s" % error)
-        return False
-    Script.notify(ADDON_ID, Script.localize(32007))
-    return False
 
 
 # ---------------------------------------------- channel list helpers -------
@@ -301,7 +317,12 @@ def play(plugin, channel_id):
         Script.notify(ADDON_ID, "Login required. Add your RMN/SID and verify OTP in add-on settings.")
         return False
 
-    mpd, lic = utils.resolvePlayback(channel_id)
+    try:
+        mpd, lic = utils.resolvePlayback(channel_id)
+    except Exception:
+        utils.log_exc("play resolve cid=%s" % channel_id)
+        Script.notify(ADDON_ID, "Playback error - see kodi.log for details.")
+        return False
     if not mpd or not lic:
         Script.notify(ADDON_ID, "No stream available for this channel/title.")
         return False
@@ -391,6 +412,43 @@ def reload(plugin):
 @Script.register
 def m3ugen(plugin):
     utils.exportM3U()
+
+
+@Script.register
+def uploadlog(plugin):
+    """Read kodi.log and post it to paste.rs for remote debugging."""
+    try:
+        log_path = xbmcvfs.translatePath("special://logpath/kodi.log")
+        if not xbmcvfs.exists(log_path):
+            Script.notify("Upload Log", "kodi.log not found")
+            return
+        content = ""
+        with xbmcvfs.File(log_path, "r") as f:
+            content = f.read()
+        if not content:
+            Script.notify("Upload Log", "log is empty")
+            return
+        Script.notify("Upload Log", "Uploading kodi.log...")
+        resp = requests.post(
+            "https://paste.rs",
+            data=content.encode("utf-8", "replace"),
+            headers={"Content-Type": "text/plain"},
+            timeout=60,
+        )
+        url = resp.text.strip()
+        if not url.startswith("http"):
+            Script.notify("Upload Log", "Upload failed: HTTP %s" % resp.status_code)
+            return
+        utils.log("UPLOADLOG: shared log at %s" % url)
+        Dialog().textviewer("Tata Play Binge - Log shared", "Share this link:\n\n%s\n\n" % url)
+        try:
+            xbmc.executebuiltin("Clipboard(%s)" % url)
+        except Exception:
+            pass
+        Script.notify("Upload Log", "Log URL copied")
+    except Exception:
+        utils.log_exc("uploadlog")
+        Script.notify("Upload Log", "Error - see kodi.log for details.")
 
 
 def run():

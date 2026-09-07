@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import time
+import traceback
 from urllib.parse import quote
 
 import requests
@@ -10,6 +11,38 @@ from codequick.script import Settings
 from codequick.storage import PersistentDict
 
 import constants
+
+
+def log(msg, lvl=Script.INFO):
+    try:
+        Script.log("BINGE: " + msg, lvl=lvl)
+    except Exception:
+        pass
+
+
+def log_exc(where):
+    try:
+        log("%s failed: %s" % (where, traceback.format_exc()[-1200:]), lvl=Script.ERROR)
+    except Exception:
+        pass
+
+
+def _safe(data):
+    """Return a small diagnostic preview of a response body with secrets masked."""
+    if data is None:
+        return "None"
+    if isinstance(data, dict):
+        out = {}
+        for k, v in list(data.items())[:8]:
+            vv = v
+            if isinstance(vv, str) and len(vv) > 60:
+                vv = vv[:20] + "...(%d chars)" % len(vv)
+            if k.lower() in ("authorization", "accessToken", "token", "otp", "jwt"):
+                vv = "<masked>"
+            out[k] = vv
+        return json.dumps(out)[:900]
+    s = str(data)
+    return s[:900]
 
 
 def get_opt_quality():
@@ -111,10 +144,17 @@ def isLoggedIn():
 
 # -------------------------------------------------------------------- login ---
 def generateOTP(rmn):
-    resp = urlquick.get(constants.OTP_RMN_URL.format(rmn=rmn),
-                        headers=get_headers(auth=True),
-                        verify=False, max_age=-1, raise_for_status=False)
-    return resp.json()
+    try:
+        resp = urlquick.get(constants.OTP_RMN_URL.format(rmn=rmn),
+                            headers=get_headers(auth=True),
+                            verify=False, max_age=-1, raise_for_status=False)
+        data = resp.json()
+        log("generateOTP: status=%s code=%s msg=%s" %
+            (resp.status_code, data.get("code"), (data.get("message") or data.get("msg"))))
+        return data
+    except Exception:
+        log_exc("generateOTP")
+        return {}
 
 
 def lookupSid(rmn):
@@ -124,6 +164,7 @@ def lookupSid(rmn):
                             verify=False, max_age=-1, raise_for_status=False)
         data = resp.json()
         code = data.get("code")
+        log("lookupSid: status=%s code=%s" % (resp.status_code, code))
         if code == 0:
             data = data.get("data") or {}
             sidList = data.get("sidList") or []
@@ -131,6 +172,7 @@ def lookupSid(rmn):
                 return sidList[0].get("sid")
         return None
     except Exception:
+        log_exc("lookupSid")
         return None
 
 
@@ -141,19 +183,27 @@ def login_otp(rmn, sid, otp):
         "sid": sid,
         "loginOption": "OTP",
     }
-    resp = urlquick.post(constants.LOGIN_URL, json=payload,
-                         headers=get_headers(auth=True),
-                         verify=False, max_age=-1, raise_for_status=False)
-    data = resp.json()
+    try:
+        resp = urlquick.post(constants.LOGIN_URL, json=payload,
+                             headers=get_headers(auth=True),
+                             verify=False, max_age=-1, raise_for_status=False)
+        data = resp.json()
+    except Exception:
+        log_exc("login_otp request")
+        return "network/parse error (see log)"
+    log("login_otp: status=%s code=%s" % (resp.status_code, data.get("code")))
     if data.get("code") == 0:
         d = data.get("data") or {}
         token = d.get("accessToken")
         if token:
             ud = d.get("userDetails") or {}
             up = d.get("userProfile") or {}
+            entitlements = ud.get("entitlements") or []
+            log("login_otp: OK token(len=%s) sid=%s prof=%s entitlements=%s" %
+                (len(token), ud.get("sid"), up.get("id"), len(entitlements)))
             saveSession({
                 "accessToken": token,
-                "entitlements": ud.get("entitlements") or [],
+                "entitlements": entitlements,
                 "sid": ud.get("sid"),
                 "sName": ud.get("sName"),
                 "acStatus": ud.get("acStatus"),
@@ -161,6 +211,7 @@ def login_otp(rmn, sid, otp):
                 "rmn": rmn,
             })
             return None
+        log("login_otp: code=0 but missing accessToken: %s" % _safe(d), lvl=Script.ERROR)
     if data.get("message"):
         return data.get("message")
     return json.dumps(data.get("msg") or data.get("code"), ensure_ascii=False)
@@ -184,10 +235,11 @@ def _rawChannels():
             channels.extend(items)
             offset = int(data.get("offset") or (offset + len(items)))
         except Exception as e:
-            Script.log("Channel list fetch failed at offset %s: %s" % (offset, e), lvl=Script.ERROR)
+            log("channel list fetch failed at offset %s: %s" % (offset, e), lvl=Script.ERROR)
             break
         if total and offset >= total:
             break
+    log("channels: fetched %s (total reported %s)" % (len(channels), total))
     return channels
 
 
@@ -257,9 +309,13 @@ def fetchChannelDetail(cid):
                             verify=False, max_age=-1, raise_for_status=False)
         data = resp.json()
         if data.get("code") == 0:
-            return data.get("data") or {}
+            d = data.get("data") or {}
+            log("channel detail cid=%s: mpd=%s lic=%s" %
+                (cid, bool(d.get("dashWidewinePlayUrl")), bool(d.get("dashWidewineLicenseUrl"))))
+            return d
+        log("channel detail cid=%s code=%s %s" % (cid, data.get("code"), _safe(data)), lvl=Script.ERROR)
     except Exception as e:
-        Script.log("Channel detail fetch failed: %s" % e, lvl=Script.ERROR)
+        log("channel detail fetch failed cid=%s: %s" % (cid, e), lvl=Script.ERROR)
     return {}
 
 
@@ -297,13 +353,19 @@ def getStreamToken(channel):
         headers["profileid"] = str(session["profileId"])
 
     payload = {"action": "stream", "epids": epids}
-    resp = requests.post(constants.TOKEN_URL, json=payload,
-                         headers=headers,
-                         verify=False, timeout=30)
-    data = resp.json()
+    try:
+        resp = requests.post(constants.TOKEN_URL, json=payload,
+                             headers=headers,
+                             verify=False, timeout=30)
+        data = resp.json()
+    except Exception as e:
+        log("token-service request failed: %s" % e, lvl=Script.ERROR)
+        return None
     if data.get("code") == 0:
-        return (data.get("data") or {}).get("token")
-    Script.log("token-service error: %s" % data, lvl=Script.ERROR)
+        tok = (data.get("data") or {}).get("token")
+        log("token-service: OK token len=%s" % (len(tok) if tok else 0))
+        return tok
+    log("token-service error: %s %s" % (resp.status_code, _safe(data)), lvl=Script.ERROR)
     return None
 
 
@@ -326,6 +388,8 @@ def resolvePlayback(channel_id, channel=None):
 
     jwt = getStreamToken(sch)
     if not jwt:
+        log("resolvePlayback cid=%s: no stream JWT "
+            "(epids=%s, mpd=%s)" % (channel_id, bool(getEpids(sch)), bool(mpd)), lvl=Script.ERROR)
         return None, None
 
     manifest = mpd
@@ -336,6 +400,7 @@ def resolvePlayback(channel_id, channel=None):
     manifest += "ls_session=" + jwt
 
     license_url = lic + "&ls_session=" + jwt if lic else None
+    log("resolvePlayback cid=%s: manifest=%s license=%s" % (channel_id, bool(manifest), bool(license_url)))
     return manifest, license_url
 
 

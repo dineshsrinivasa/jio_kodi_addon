@@ -8,6 +8,7 @@ import requests
 
 from resources.lib import utils
 from resources.lib.constants import BINGE_API_BASE
+from codequick import Script
 
 TIMEOUT = 25
 
@@ -41,9 +42,22 @@ def _get(path, params=None, extra_headers=None, timeout=TIMEOUT):
     try:
         resp = requests.get(url, params=params, headers=_session_headers(extra_headers),
                             verify=False, timeout=timeout)
-        return resp.json()
+        data = resp.json()
+        if data.get("code") not in (0, 200, None):
+            utils.log("vod %s: code=%s %s" % (path, data.get("code"), utils._safe(data)), lvl=Script.ERROR)
+        return data
     except Exception:
+        utils.log_exc("vod _get " + path)
         return None
+
+
+def _get_logged(path, params=None):
+    data = _get(path, params)
+    if data is None:
+        utils.log("vod %s => no response (timeout/network)" % path, lvl=Script.ERROR)
+    elif not _data(data):
+        utils.log("vod %s => code not 0/200: %s" % (path, utils._safe(data)), lvl=Script.ERROR)
+    return data
 
 
 def _data(data):
@@ -64,7 +78,7 @@ def _items(data):
 
 def getBrowsePage(page):
     """Fetch a browse-by page config (rails: language/genre/provider/category)."""
-    return _get("homescreen-client/pub/api/v1/page/{0}/BINGE_ANYWHERE".format(page))
+    return _get_logged("homescreen-client/pub/api/v1/page/{0}/BINGE_ANYWHERE".format(page))
 
 
 def getRail(rail_id, limit=100):
@@ -79,8 +93,8 @@ def getSeeAll(rail_id, offset=0, limit=100):
 
 
 def search(query, offset=0, limit=100):
-    return _get("search-connector/binge/anywhere/search",
-                params={"queryString": query, "limit": limit, "offset": offset})
+    return _get_logged("search-connector/binge/anywhere/search",
+                       params={"queryString": query, "limit": limit, "offset": offset})
 
 
 def getSeasons(content_id):
