@@ -1,6 +1,17 @@
 Changelog
 =========
 
+v1.0.7 (2026-09-07)
+-------------------
+[fixed] Login rewritten for NON-DTH (Binge-only) accounts - the old web/SID flow (tm.tapi) refused RMN-only users (code 10005/1003)
+[added] Binge-mobile web-platform login flow (matches the tataplaybinge.com app):
+        register guest device -> anonymousId/deviceId -> generateOTP -> validateOTP -> create/update user -> session
+        Flow: RMN -> send OTP -> verify ONLY. No 10-digit subscriber ID required.
+        OTP: POST binge-mobile-services/pub/api/v1/user/authentication/generateOTP
+        Verify: POST .../authentication/validateOTP
+        Session: POST binge-mobile-services/api/v3/create/new/user (or /update/exist/user for DTH)
+        Source: reverse-engineered from the public www.tataplaybinge.com web app
+
 v1.0.6 (2026-09-07)
 -------------------
 [fixed] Login/OTP APIs updated to the current Tata Play web platform (tm.tapi.videoready.tv) - OTP was returning 404

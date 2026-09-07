@@ -17,27 +17,31 @@ X_DEVICE_ID      = "YVJNVFZWVlZ7S01UZmRZTWNNQ3lHe0RvS0VYS0NHSwA"
 X_DEVICE_PLATFORM = "MOBILE"
 X_DEVICE_TYPE    = "ANDROID"
 USER_AGENT       = "PostmanRuntime/7.26.10"
-WEB_USER_AGENT   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.41 Safari/537.36"
 
 # device_details body sent with auth requests
 DEVICE_DETAILS = ('{"app":"11.0","lo":"en_IN","os":"10","device_id":"YVJNVFZWVlZ7S01UZmRZTWNNQ3lHe0RvS0VYS0NHSwA",'
                   '"ip":"","dn":"ONEPLUS A6003","device_type":"ANDROID","device_category":"open","manufacturer":"OnePlus",'
                   '"ma":"","car":"","sname":"","device_platform":"MOBILE","location":"","model":"ONEPLUS A6003",'
                   '"pl":"Android","net":"Wifi"}')
-WEB_DEVICE_DETAILS = ('{"pl":"web","os":"WINDOWS","lo":"en-us","app":"1.36.21","dn":"PC","bv":101,"bn":"CHROME",'
-                      '"device_id":"nkdvk1941cbv2icfgjxjjos113d6euws","device_type":"WEB","device_platform":"PC",'
-                      '"device_category":"open","manufacturer":"WINDOWS_CHROME_101","model":"PC","sname":""}')
 
-# Endpoints (auth/login moved to the watch.tataplay.com web platform tm.tapi host)
-OTP_RMN_URL         = API_TM + "/rest-api/pub/api/v2/generate/otp"
-LOGIN_URL           = API_TM + "/rest-api/pub/api/v3/login/ott"
-SID_LOOKUP_URL      = API_TM + "/rest-api/pub/api/v2/subscriberLookup"
+# Endpoints (auth/login via the Binge-mobile platform for RMN-only non-DTH accounts)
 CHANNELS_URL        = API_TS + "/content-detail/pub/api/v1/channels"
 CHANNEL_DETAIL_URL  = API_KONG + "/content-detail/pub/api/v1/channels/{cid}"
 TOKEN_URL           = API_KONG + "/auth-service/v1/oauth/token-service/token"
 
 # Binge OTT (VOD) API base - discovered from the official Binge web bundle
 BINGE_API_BASE      = "https://tb.tapi.videoready.tv/"
+
+# Binge-mobile (www.tataplaybinge.com) platform - works for NON-DTH (RMN-only) accounts.
+# Flow: guest/register -> anonymousId + deviceId -> generateOTP -> validateOTP -> create user -> session.
+BINGE_MOBILE_UA        = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+BINGE_ORIGIN           = "https://www.tataplaybinge.com"
+BINGE_REGISTER_URL     = BINGE_API_BASE + "binge-mobile-services/pub/api/v1/user/guest/register"
+BINGE_OTP_URL          = BINGE_API_BASE + "binge-mobile-services/pub/api/v1/user/authentication/generateOTP"
+BINGE_VALIDATE_OTP_URL = BINGE_API_BASE + "binge-mobile-services/pub/api/v1/user/authentication/validateOTP"
+BINGE_SUBSCRIBER_URL   = BINGE_API_BASE + "binge-mobile-services/api/v4/subscriber/details"
+BINGE_CREATE_USER_URL  = BINGE_API_BASE + "binge-mobile-services/api/v3/create/new/user"
+BINGE_UPDATE_USER_URL  = BINGE_API_BASE + "binge-mobile-services/api/v3/update/exist/user"
 
 # Playback
 REFERER           = "https://watch.tataplay.com/"

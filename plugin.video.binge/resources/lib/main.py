@@ -83,28 +83,22 @@ def root(plugin):
 
 @Route.register
 def login_flow(plugin):
-    """In-add-on OTP login: RMN -> auto SID -> send OTP -> verify."""
+    """In-add-on OTP login: RMN -> send OTP -> verify (Binge-mobile non-DTH flow)."""
     try:
         rmn = keyboard("Enter your Tata Play Binge registered mobile number")
         if not rmn:
             return False
         rmn = str(rmn).strip()
         Settings.set_string("rmn", rmn)
-        sid = (Settings.get_string("sid") or "").strip()
-        if not sid:
-            sid = utils.lookupSid(rmn)
-            if not sid:
-                Script.notify(ADDON_ID, "No Binge subscriber found for this number.")
-                return False
-            Settings.set_string("sid", str(sid))
-        resp = utils.generateOTP(rmn, sid)
-        if resp.get("code") != 0:
-            Script.notify(ADDON_ID, "OTP failed: %s" % (resp.get("message") or resp.get("msg")))
+        resp = utils.generateOTP(rmn)
+        msg = resp.get("message") or resp.get("msg")
+        if resp.get("code") == -1 or (resp.get("code") not in (None, 0) and msg and "success" not in str(msg).lower()):
+            Script.notify(ADDON_ID, "OTP failed: %s" % msg)
             return False
         otp = keyboard("Enter the OTP sent to +91 %s" % rmn)
         if not otp:
             return False
-        error = utils.login_otp(rmn, sid, str(otp).strip())
+        error = utils.login_otp(rmn, None, str(otp).strip())
         if error:
             Script.notify(ADDON_ID, "Login failed: %s" % error)
             return False
@@ -365,17 +359,13 @@ def sendotp(plugin):
         if not rmn:
             Script.notify(ADDON_ID, "Enter your registered mobile number first.")
             return
-        sid = Settings.get_string("sid") or ""
-        if not sid:
-            sid = utils.lookupSid(rmn)
-            if sid:
-                Settings.set_string("sid", sid)
-        resp = utils.generateOTP(rmn, sid)
-        if resp.get("code") == 0:
-            Script.notify(ADDON_ID, "OTP sent. Enter it below and tap Verify.")
-        else:
+        resp = utils.generateOTP(rmn)
+        msg = resp.get("message") or resp.get("msg")
+        if resp.get("code") == -1 or (resp.get("code") not in (None, 0) and msg and "success" not in str(msg).lower()):
             utils.log("sendotp: API rejected: %s" % utils._safe(resp), lvl=Script.ERROR)
-            Script.notify(ADDON_ID, "OTP failed: %s" % (resp.get("message") or resp.get("msg")))
+            Script.notify(ADDON_ID, "OTP failed: %s" % msg)
+        else:
+            Script.notify(ADDON_ID, "OTP sent. Enter it below and tap Verify.")
     except Exception:
         utils.log_exc("sendotp")
         xbmcgui.Dialog().textviewer(
@@ -387,16 +377,11 @@ def sendotp(plugin):
 def dologin(plugin):
     try:
         rmn = Settings.get_string("rmn") or ""
-        sid = Settings.get_string("sid") or ""
         otp = Settings.get_string("otp") or ""
         if not (rmn and otp):
             Script.notify(ADDON_ID, "Missing RMN or OTP.")
             return
-        if not sid:
-            sid = utils.lookupSid(rmn)
-            if sid:
-                Settings.set_string("sid", sid)
-        error = utils.login_otp(rmn, sid, otp)
+        error = utils.login_otp(rmn, None, otp)
         if error:
             Script.notify(ADDON_ID, "Login failed: %s" % error)
         else:

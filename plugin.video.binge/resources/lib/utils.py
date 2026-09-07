@@ -143,90 +143,237 @@ def isLoggedIn():
 
 
 # -------------------------------------------------------------------- login ---
-def _web_headers():
-    """Headers for the watch.tataplay.com web login endpoints (tm.tapi host)."""
-    return {
-        "Content-Type": "application/json",
-        "User-Agent": constants.WEB_USER_AGENT,
-        "device_details": constants.WEB_DEVICE_DETAILS,
-        "origin": "https://watch.tataplay.com",
-        "referer": "https://watch.tataplay.com/",
+# Binge-mobile (www.tataplaybinge.com) OTP login for NON-DTH (RMN-only) accounts.
+# Source of truth: reverse-engineered from the official www.tataplaybinge.com web app
+# (see drmlive/tataplay send_otp.php / verify_otp.php).
+
+
+def _bm_headers(extra=None, content_type=None):
+    """Base headers for binge-mobile-services requests."""
+    headers = {
+        "accept": "application/json, text/plain, */*",
+        "origin": constants.BINGE_ORIGIN,
+        "referer": constants.BINGE_ORIGIN + "/",
+        "user-agent": constants.BINGE_MOBILE_UA,
     }
+    if content_type:
+        headers["Content-Type"] = content_type
+    if extra:
+        headers.update(extra)
+    return headers
 
 
-def generateOTP(rmn, sid):
+def _device_cred():
+    """Return (deviceId, anonymousId), registering a guest device on first use."""
+    with PersistentDict(constants.SESSION_KEY) as db:
+        cred = db.get("bm_device")
+        if cred and cred.get("deviceId") and cred.get("anonymousId"):
+            return cred["deviceId"], cred["anonymousId"]
+
+    import random
+    device_id = "%03d%d%d" % (random.randint(100, 999), int(time.time()), random.randint(10, 99))
     try:
-        resp = urlquick.post(constants.OTP_RMN_URL,
-                             json={"sid": str(sid).strip(), "rmn": str(rmn).strip()},
-                             headers=_web_headers(),
+        resp = urlquick.post(constants.BINGE_REGISTER_URL,
+                             data="",
+                             headers=_bm_headers({"deviceid": device_id, "authorization": "bearer undefined"}),
                              verify=False, max_age=-1, raise_for_status=False)
         data = resp.json()
-        log("generateOTP: status=%s code=%s msg=%s" %
-            (resp.status_code, data.get("code"), (data.get("message") or data.get("msg"))))
-        return data
     except Exception:
-        log_exc("generateOTP")
-        return {}
+        log_exc("guest register request")
+        return device_id, None
+    anon = (data.get("data") or {}).get("anonymousId")
+    log("guest register: status=%s anonymousId=%s" % (getattr(resp, "status_code", "?"), bool(anon)))
+    if anon:
+        with PersistentDict(constants.SESSION_KEY) as db:
+            db["bm_device"] = {"deviceId": device_id, "anonymousId": anon}
+    return device_id, anon
+
+
+def generateOTP(rmn, sid=None):
+    """Send OTP for a NON-DTH (RMN-only) account via the Binge-mobile flow.
+    sid is ignored/accepted for API compatibility with the older DTH flow."""
+    device_id, anon = _device_cred()
+    if not anon:
+        return {"code": -1, "message": "Device registration failed (see log)."}
+    try:
+        resp = urlquick.post(constants.BINGE_OTP_URL,
+                             data="",
+                             headers=_bm_headers({
+                                 "anonymousid": anon,
+                                 "deviceid": device_id,
+                                 "mobilenumber": str(rmn).strip(),
+                                 "newotpflow": "4DOTP",
+                                 "platform": "BINGE_ANYWHERE",
+                             }),
+                             verify=False, max_age=-1, raise_for_status=False)
+        data = resp.json()
+    except Exception:
+        log_exc("generateOTP request")
+        return {"code": -1, "message": "network/parse error (see log)"}
+    log("generateOTP: status=%s body=%s" % (getattr(resp, "status_code", "?"), _safe(data)))
+    return data
 
 
 def lookupSid(rmn):
+    """Binge-mobile has no 10-digit DTH SID for RMN-only accounts; always returns None
+    so the caller proceeds with the non-DTH OTP flow."""
+    return None
+
+
+def login_otp(rmn, sid=None, otp=None):
+    """Validate OTP and create/update the Binge subscriber, storing the session.
+
+    Returns None on success, else an error string."""
     try:
-        resp = urlquick.post(constants.SID_LOOKUP_URL,
-                             json={"rmn": str(rmn).strip()},
-                             verify=False, max_age=-1, raise_for_status=False)
-        data = resp.json()
-        log("lookupSid: status=%s code=%s msg=%s" %
-            (resp.status_code, data.get("code"), (data.get("message") or data.get("msg"))))
-        sidList = (data.get("data") or {}).get("sidList") or []
-        if isinstance(sidList, list) and sidList:
-            sid = sidList[0].get("sid") if isinstance(sidList[0], dict) else sidList[0]
-            return str(sid)
-        return None
+        rmn = str(rmn).strip()
+        otp = str(otp).strip()
     except Exception:
-        log_exc("lookupSid")
-        return None
+        return "invalid input"
+    device_id, anon = _device_cred()
+    if not anon:
+        return "Device registration failed (see log)."
 
-
-def login_otp(rmn, sid, otp):
-    payload = {
-        "authorization": otp,
-        "rmn": rmn,
-        "sid": sid,
-        "loginOption": "OTP",
-    }
+    # 1) validate OTP -> userAuthenticateToken + deviceAuthenticateToken
     try:
-        resp = urlquick.post(constants.LOGIN_URL, json=payload,
-                             headers=_web_headers(),
+        resp = urlquick.post(constants.BINGE_VALIDATE_OTP_URL,
+                             json={"mobileNumber": rmn, "otp": otp},
+                             headers=_bm_headers({"anonymousid": anon, "deviceid": device_id, "platform": "BINGE_ANYWHERE"}, content_type="application/json"),
                              verify=False, max_age=-1, raise_for_status=False)
         data = resp.json()
     except Exception:
-        log_exc("login_otp request")
+        log_exc("validateOTP request")
         return "network/parse error (see log)"
-    log("login_otp: status=%s code=%s msg=%s" %
-        (resp.status_code, data.get("code"), (data.get("message") or data.get("msg"))))
-    if data.get("code") == 0:
-        d = data.get("data") or {}
-        token = d.get("accessToken")
-        if token:
-            ud = d.get("userDetails") or {}
-            up = d.get("userProfile") or {}
-            entitlements = ud.get("entitlements") or []
-            log("login_otp: OK token(len=%s) sid=%s prof=%s entitlements=%s" %
-                (len(token), ud.get("sid"), up.get("id"), len(entitlements)))
-            saveSession({
-                "accessToken": token,
-                "entitlements": entitlements,
-                "sid": ud.get("sid"),
-                "sName": ud.get("sName"),
-                "acStatus": ud.get("acStatus"),
-                "profileId": up.get("id"),
-                "rmn": rmn,
-            })
-            return None
-        log("login_otp: code=0 but missing accessToken: %s" % _safe(d), lvl=Script.ERROR)
-    if data.get("message"):
-        return data.get("message")
-    return json.dumps(data.get("msg") or data.get("code"), ensure_ascii=False)
+    log("validateOTP: status=%s body=%s" % (getattr(resp, "status_code", "?"), _safe(data)))
+    tok = (data.get("data") or {}).get("userAuthenticateToken")
+    devtok = (data.get("data") or {}).get("deviceAuthenticateToken") or ""
+    if not tok:
+        return (data.get("message") or "OTP validation failed") if data.get("message") else "OTP validation failed"
+    log("validateOTP: OK userToken(len=%s)" % len(tok))
+
+    # 2) fetch subscriber account details -> pick create vs update
+    account = {}
+    try:
+        resp = urlquick.get(constants.BINGE_SUBSCRIBER_URL,
+                            headers=_bm_headers({
+                                "anonymousid": anon,
+                                "authorization": "bearer " + tok,
+                                "devicetype": "WEB",
+                                "mobilenumber": rmn,
+                            }),
+                            verify=False, max_age=-1, raise_for_status=False)
+        acc_data = resp.json()
+    except Exception:
+        log_exc("subscriber details request")
+        acc_data = {}
+    ads = ((acc_data.get("data") or {}).get("accountDetails") or [{}])
+    account = ads[0] if isinstance(ads, list) and ads else {}
+    dth_status = account.get("dthStatus") or ""
+
+    # 3) create (new user) or update (existing) via the login endpoint
+    if not dth_status:
+        login_url = constants.BINGE_CREATE_USER_URL
+        login_body = {
+            "dthStatus": "Non DTH User",
+            "subscriberId": rmn,
+            "login": "OTP",
+            "mobileNumber": rmn,
+            "isPastBingeUser": False,
+            "eulaChecked": True,
+            "packageId": "",
+        }
+    elif dth_status == "DTH Without Binge":
+        login_url = constants.BINGE_CREATE_USER_URL
+        login_body = {
+            "dthStatus": "DTH Without Binge",
+            "subscriberId": account.get("subscriberId") or "",
+            "login": "OTP",
+            "mobileNumber": rmn,
+            "baId": None,
+            "isPastBingeUser": False,
+            "eulaChecked": True,
+            "packageId": "",
+            "referenceId": None,
+        }
+    else:
+        login_url = constants.BINGE_UPDATE_USER_URL
+        login_body = {
+            "dthStatus": dth_status,
+            "subscriberId": account.get("subscriberId") or "",
+            "bingeSubscriberId": account.get("bingeSubscriberId") or "",
+            "baId": account.get("baId") or "",
+            "login": "OTP",
+            "mobileNumber": rmn,
+            "payment_return_url": "https://www.tataplaybinge.com/subscription-transaction/status",
+            "eulaChecked": True,
+            "packageId": "",
+        }
+
+    try:
+        resp = urlquick.post(login_url,
+                             json=login_body,
+                             headers=_bm_headers({
+                                 "anonymousid": anon,
+                                 "authorization": "bearer " + tok,
+                                 "device": "WEB",
+                                 "deviceid": device_id,
+                                 "devicename": "Web",
+                                 "devicetoken": devtok,
+                                 "platform": "WEB",
+                             }, content_type="application/json"),
+                             verify=False, max_age=-1, raise_for_status=False)
+        ldata = resp.json()
+    except Exception:
+        log_exc("login create/update request")
+        return "network/parse error (see log)"
+    log("login create/update: status=%s body=%s" % (getattr(resp, "status_code", "?"), _safe(ldata)))
+
+    session = _bm_session_from(ldata, rmn)
+    if session and session.get("accessToken"):
+        saveSession(session)
+        return None
+    msg = ldata.get("message") or (acc_data.get("message") if acc_data else None) or "Login failed"
+    return msg
+
+
+def _deep(data, *keys):
+    """Walk data (dicts/lists) collecting the first non-empty value for any of keys."""
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if k.lower() in keys and v not in (None, "", []):
+                return v
+        for v in data.values():
+            found = _deep(v, *keys)
+            if found not in (None, "", []):
+                return found
+    elif isinstance(data, list):
+        for v in data:
+            found = _deep(v, *keys)
+            if found not in (None, "", []):
+                return found
+    return None
+
+
+def _bm_session_from(data, rmn):
+    """Extract a usable session dict from the create/update login response."""
+    token = _deep(data, "accessToken", "access_token", "token", "ssoToken", "authToken")
+    if not token:
+        return None
+    entitlements = _deep(data, "entitlements", "packages", "pkgIds") or []
+    if isinstance(entitlements, dict):
+        entitlements = [v for v in entitlements.values()]
+    if not isinstance(entitlements, list):
+        entitlements = [entitlements]
+    profile = _deep(data, "profileId")
+    return {
+        "accessToken": token,
+        "entitlements": entitlements,
+        "sid": _deep(data, "sid", "subscriberId"),
+        "sName": _deep(data, "sName", "subscriberName", "subscriberName_inner"),
+        "acStatus": _deep(data, "acStatus"),
+        "profileId": profile,
+        "rmn": rmn,
+        "anonymousId": _deep(data, "anonymousId"),
+    }
 
 
 # ------------------------------------------------------------ channel list ---

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.6" provider-name="Dinesh">
+<addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.7" provider-name="Dinesh">
     <requires>
         <import addon="xbmc.python" version="3.0.0" />
         <import addon="script.module.codequick" version="1.0.2" />
@@ -17,6 +17,8 @@
         <license>MIT</license>
         <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
         <news>
+            [- 1.0.7 -]
+            [fixed] Login rewritten for NON-DTH (Binge-only) accounts: RMN + OTP now uses the Binge web platform (www.tataplaybinge.com / tb.tapi.videoready.tv) - no subscriber ID needed, matching the Binge app
             [- 1.0.6 -]
             [fixed] Login/OTP APIs updated to the current Tata Play web platform (tm.tapi.videoready.tv) - OTP was returning 404
             [- 1.0.5 -]
