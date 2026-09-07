@@ -22,7 +22,14 @@ def root(plugin):
     if not utils.isLoggedIn():
         yield Listitem.from_dict(
             **{
-                "label": "Login (OTP) - go to add-on settings",
+                "label": "Login with RMN + OTP",
+                "art": _default_art(),
+                "callback": Route.ref("/resources/lib/main:login_flow"),
+            }
+        )
+        yield Listitem.from_dict(
+            **{
+                "label": "Login (OTP) via add-on settings",
                 "art": _default_art(),
                 "callback": "plugin://plugin.video.binge/resources/lib/main/login/",
             }
@@ -56,6 +63,43 @@ def root(plugin):
                 "callback": Route.ref("/resources/lib/main:reload"),
             }
         )
+        yield Listitem.from_dict(
+            **{
+                "label": "Logout",
+                "art": _default_art(),
+                "callback": Route.ref("/resources/lib/main:logout"),
+            }
+        )
+
+
+@Route.register
+def login_flow(plugin):
+    """In-add-on OTP login: RMN -> auto SID -> send OTP -> verify."""
+    rmn = keyboard("Enter your Tata Play Binge registered mobile number")
+    if not rmn:
+        return False
+    rmn = str(rmn).strip()
+    Settings.set_string("rmn", rmn)
+    sid = (Settings.get_string("sid") or "").strip()
+    if not sid:
+        sid = utils.lookupSid(rmn)
+        if not sid:
+            Script.notify(ADDON_ID, "No Binge subscriber found for this number.")
+            return False
+        Settings.set_string("sid", str(sid))
+    resp = utils.generateOTP(rmn)
+    if resp.get("code") != 0:
+        Script.notify(ADDON_ID, "OTP failed: %s" % (resp.get("message") or resp.get("msg")))
+        return False
+    otp = keyboard("Enter the OTP sent to +91 %s" % rmn)
+    if not otp:
+        return False
+    error = utils.login_otp(rmn, sid, str(otp).strip())
+    if error:
+        Script.notify(ADDON_ID, "Login failed: %s" % error)
+        return False
+    Script.notify(ADDON_ID, Script.localize(32007))
+    return False
 
 
 # ---------------------------------------------- channel list helpers -------

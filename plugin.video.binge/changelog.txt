@@ -1,6 +1,11 @@
 Changelog
 =========
 
+v1.0.1 (2026-09-07)
+-------------------
+[fixed] Settings use the classic Kodi schema so Account/Login options show on all versions
+[added] In-add-on OTP login flow ("Login with RMN + OTP") - no settings screen needed
+
 v1.0.0 (2026-09-07)
 -------------------
 [added] Tata Play Binge addon - OTT login + live channels in Kodi

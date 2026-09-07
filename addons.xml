@@ -99,7 +99,7 @@
         </extension>
     </addon>
 
-    <addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.0" provider-name="Dinesh">
+    <addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.1" provider-name="Dinesh">
         <requires>
             <import addon="xbmc.python" version="3.0.0" />
             <import addon="script.module.codequick" version="1.0.2" />
@@ -117,13 +117,16 @@
             <license>MIT</license>
             <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
 <news>
+                [- 1.0.1 -]
+                [fixed] Settings now use the classic Kodi schema so the Account/Login options are visible on all versions/tables
+                [added] In-add-on login flow: open the add-on and choose "Login with RMN + OTP" (no need to open settings)
                 [- 1.0.0 -]
                 [added] Tata Play Binge addon
                 [added] OTP login via registered mobile number + subscriber ID
                 [added] Live channels from Binge lineup (entitlement filtered)
                 [added] Dedicated Zee TV section (all Zee network channels via Binge)
                 [added] DASH/Widevine playback with per-channel ls_session token
-                [added] OTT catalogue browse: search / browse-by / movies / TV shows / seasons & episodes (playback of partner OTT titles requires partner DRM APIs, so those titles show an info notice; live channels play fully)
+                [added] OTT catalogue browse: search / browse-by / movies / TV shows / seasons and episodes (playback of partner OTT titles requires partner DRM APIs, so those titles show an info notice; live channels play fully)
                 [added] M3U playlist generation for PVR IPTV Simple
             </news>
             <disclaimer>This addon is not officially commissioned/supported by Tata Play.</disclaimer>
