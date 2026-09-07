@@ -260,6 +260,7 @@ def login_otp(rmn, sid=None, otp=None):
                                 "authorization": "bearer " + tok,
                                 "devicetype": "WEB",
                                 "mobilenumber": rmn,
+                                "platform": "BINGE_ANYWHERE",
                             }),
                             verify=False, max_age=-1, raise_for_status=False)
         acc_data = resp.json()
@@ -270,8 +271,8 @@ def login_otp(rmn, sid=None, otp=None):
     ads = ((acc_data.get("data") or {}).get("accountDetails") or [{}])
     account = ads[0] if isinstance(ads, list) and ads else {}
     dth_status = account.get("dthStatus") or ""
-    log("subscriber/details: dthStatus=%r subscriberId=%r bingeSubscriberId=%r firstTimeLogin=%s" %
-        (dth_status, account.get("subscriberId"), account.get("bingeSubscriberId"), first_login))
+    log("subscriber/details: dthStatus=%r subscriberId=%r bingeSubscriberId=%r baId=%r firstTimeLogin=%s" %
+        (dth_status, account.get("subscriberId"), account.get("bingeSubscriberId"), account.get("baId"), first_login))
 
     # 3) create (new user) or update (existing) via the login endpoint
     if first_login:
