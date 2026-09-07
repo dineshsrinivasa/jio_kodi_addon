@@ -2,7 +2,7 @@
 # Tata Play Binge OTT (VOD) catalogue browsing layer.
 #
 # Endpoint shapes discovered from the official Binge web bundle (tb.tapi.videoready.tv).
-# NOTE: these are undocumented and require an authenticated session (bearer access token).
+# The hierarchy endpoint (DONGLE_HOMEPAGE) is the primary entry point for OTT browse.
 # Every call is guarded so a failure degrades gracefully instead of crashing the addon.
 import requests
 
@@ -29,11 +29,8 @@ def _session_headers(extra=None):
         "content-type": "application/json",
         "platform": "BINGE_ANYWHERE",
         "locale": "IND",
-        "devicetype": "WEB",
         "deviceName": "Web",
         "deviceType": "WEB",
-        "deviceid": "5a1098e62d9bd97cef26bc2a0b3c18b2",
-        "anonymousid": "E4A02CEDF3F94A21A658A09A19D06627",
         "apiVersion": "v3",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     }
@@ -102,6 +99,8 @@ def _items(data):
     d = _data(data)
     if not d:
         return []
+    if isinstance(d, list):
+        return d
     items = (d.get("items") or d.get("contentList") or d.get("list") or d.get("content")
              or d.get("rails") or d.get("railList"))
     if isinstance(items, dict):
@@ -109,23 +108,44 @@ def _items(data):
     return items or []
 
 
-def getBrowsePage(page):
-    """Fetch a browse-by page config (rails: language/genre/provider/category)."""
-    return _get_logged("homescreen-client/pub/api/v1/page/{0}".format(page))
+# ------------------------------------------------------------------ hierarchy ---
+def getHierarchy(page="DONGLE_HOMEPAGE"):
+    """Fetch the full hierarchy for a browse page. Returns raw data (list of rails)."""
+    return _get_logged("homescreen-client/pub/api/v2/hierarchy/{0}".format(page))
 
 
-def getRail(rail_id, limit=100):
-    """Fetch rail content by rail id."""
-    return _get("homescreen-client/api/v3/rail",
-                params={"id": rail_id, "limit": limit, "allowBingeRepositioning": "true", "rule": "VRPRIMERAILFILTER"})
+def _hierarchy_rails(page="DONGLE_HOMEPAGE"):
+    """Extract rail dicts from a hierarchy response."""
+    data = getHierarchy(page)
+    d = _data(data)
+    if isinstance(d, list):
+        return d
+    if isinstance(d, dict):
+        return d.get("rails") or d.get("railList") or []
+    return []
+
+
+def getRail(rail_id, limit=100, provider=None):
+    """Fetch rail content by rail id. Uses VRNNRAILFILTER (confirmed working)."""
+    params = {
+        "id": rail_id,
+        "limit": limit,
+        "allowBingeRepositioning": "true",
+    }
+    extra = {"rule": "VRNNRAILFILTER"}
+    if provider:
+        extra["userSelectedApps"] = provider
+    return _get("homescreen-client/api/v3/rail", params=params, extra_headers=extra)
 
 
 def getSeeAll(rail_id, offset=0, limit=100):
+    """Fetch seeAll content. Note: endpoint may be broken server-side (startsWith TypeError)."""
     return _get("homescreen-client/pub/api/v4/rail/seeAll",
                 params={"id": rail_id, "limit": limit, "Offset": offset})
 
 
 def search(query, offset=0, limit=100):
+    """Search OTT content. Tries multiple endpoints; returns None if all fail."""
     for path in ("search-connector/binge/anywhere/search",
                  "binge-media-search/pub/freemium/search/results",
                  "search-connector/freemium/search/results"):
@@ -143,46 +163,49 @@ def getContentInfo(content_id):
     return _get("content-subscriber-detail/api/content/info/" + str(content_id))
 
 
-def getContentPackage(offset=0, maxn=100):
-    """Subscribed partner OTT apps (like Jio-Hotstar style provider list)."""
-    d = _data(_get("homescreen-client/pub/api/v1/page/HOME"))
-    return d
-
-
 # ------------------------------------------------------------ discovery ------
-def collect_rails(pages=("HOME", "BROWSE", "LANGUAGE")):
-    """Collect (title, rail_id, kind) rails across the known browse pages.
+_LANGS = {"kannada", "hindi", "tamil", "telugu", "malayalam", "marathi",
+          "bengali", "punjabi", "gujarati", "english", "odia", "bhojpuri"}
+_PROVIDERS = {"zee5", "jiohotstar", "sonyliv", "amazon", "prime", "apple",
+              "discovery", "aha", "netflix", "sunnxt", "hungama", "mx",
+              "lionsgate", "shemaroo", "fancode", "bbc", "ultra", "epic",
+              "chaupal", "namma", "playflix", "manorama", "waves", "stage"}
 
-    kind is best-effort: 'language' if title hints a language, 'provider' if it
-    hints a known partner app, else 'category'. Duplicates are dropped.
+
+def collect_rails(page="DONGLE_HOMEPAGE"):
+    """Collect (title, rail_id, kind) rails from the hierarchy endpoint.
+
+    kind is determined by title analysis: 'language', 'provider', or 'category'.
     """
-    langs = {"kannada", "hindi", "tamil", "telugu", "malayalam", "marathi",
-             "bengali", "punjabi", "gujarati", "english", "odia", "bhojpuri"}
-    providers = {"zee5", "jiohotstar", "sonyliv", "amazon", "prime", "apple",
-                 "discovery", "aha", "netflix", "sunnxt", "hungama", "mx",
-                 "lionsgate", "shemaroo", "fancode", "bbc", "ultra", "epic",
-                 "chaupal", "namma", "playflix", "manorama", "waves", "stage"}
     found = {}
-    for page in pages:
-        data = _get_logged("homescreen-client/pub/api/v1/page/{0}".format(page))
-        for it in _items(data):
-            title = (it.get("title") or it.get("name") or "").strip()
-            rid = it.get("id") or it.get("railId")
-            if not title or rid is None or str(rid) in found:
-                continue
-            lw = title.lower()
-            kind = "category"
-            for l in langs:
-                if l in lw:
-                    kind = "language"
+    for it in _hierarchy_rails(page):
+        title = (it.get("railTitle") or it.get("title") or it.get("name") or "").strip()
+        rid = it.get("railId") or it.get("id")
+        if not title or rid is None or str(rid) in found:
+            continue
+        lw = title.lower()
+        kind = "category"
+        for l in _LANGS:
+            if l in lw:
+                kind = "language"
+                break
+        if kind == "category":
+            for p in _PROVIDERS:
+                if p in lw.replace(" ", ""):
+                    kind = "provider"
                     break
-            if kind == "category":
-                for p in providers:
-                    if p in lw.replace(" ", ""):
-                        kind = "provider"
-                        break
-            found[str(rid)] = {"title": title, "rail": str(rid), "kind": kind}
+        found[str(rid)] = {"title": title, "rail": str(rid), "kind": kind,
+                           "provider": it.get("provider") or ""}
     return list(found.values())
+
+
+def find_rail_by_kind(kind, name):
+    """Find a rail matching kind + name substring (case-insensitive)."""
+    lw = name.lower().replace(" ", "")
+    for r in collect_rails():
+        if r["kind"] == kind and lw in r["title"].lower().replace(" ", ""):
+            return r["rail"]
+    return None
 
 
 # ---------------------------------------------------------------- items ------

@@ -1,6 +1,19 @@
 Changelog
 ========
 
+v1.0.13 (2026-09-07)
+--------------------
+[fixed] OTT browse completely rewritten: uses the confirmed-working hierarchy endpoint
+        (DONGLE_HOMEPAGE) + rail content endpoint with VRNNRAILFILTER rule, replacing the
+        broken /page/X/BINGE_ANYWHERE and seeAll endpoints that crash server-side with
+        "Cannot read properties of undefined (reading 'startsWith')"
+[fixed] OTT items no longer show GetDirectory crash: unavailable items are now non-navigable
+        (no callback attached)
+[added] Browse All Rails: lists all home-page rails from hierarchy, each expandable to content
+[added] collect_rails now fetches from hierarchy endpoint (single request) instead of scanning
+        multiple page endpoints
+[changed] getRail uses VRNNRAILFILTER (confirmed working) instead of VRPRIMERAILFILTER
+
 v1.0.12 (2026-09-07)
 --------------------
 [fixed] OTT browse/search now work: the Binge web app sends device headers (anonymousid, deviceid,

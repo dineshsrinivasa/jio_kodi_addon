@@ -19,12 +19,9 @@ def _default_art():
 
 
 def _unavailable_item(msg):
-    """Yield a single explanatory item instead of an empty folder (avoids codequick 'No items found')."""
-    return [Listitem.from_dict(**{
-        "label": msg,
-        "art": _default_art(),
-        "callback": Route.ref("/resources/lib/main:ott_notice"),
-    })]
+    """Return a single non-navigable explanatory item (no callback → no GetDirectory crash)."""
+    li = Listitem.from_dict(label=msg, art=_default_art())
+    return [li]
 
 
 # ------------------------------------------------------------------ root ---
@@ -180,7 +177,7 @@ def ott(plugin):
         "label": "Zee5 (Movies + Series)",
         "art": _default_art(),
         "callback": Route.ref("/resources/lib/main:ott_provider"),
-        "params": {"provider": "ZEE5"},
+        "params": {"provider": "Zee5"},
     })
     yield Listitem.from_dict(**{
         "label": "JioHotstar (Movies + Series)",
@@ -194,10 +191,9 @@ def ott(plugin):
         "callback": Route.ref("/resources/lib/main:ott_search"),
     })
     yield Listitem.from_dict(**{
-        "label": "Browse-by (Genres / Languages / Providers)",
+        "label": "Browse All Rails",
         "art": _default_art(),
         "callback": Route.ref("/resources/lib/main:ott_browse"),
-        "params": {"page": "BROWSE"},
     })
     yield Listitem.from_dict(**{
         "label": "Movies (Top Picks)",
@@ -214,19 +210,13 @@ def ott(plugin):
 
 
 def _ott_kannada_rail():
-    """Locate a Kannada language rail (server-curated), else None."""
-    for r in vod.collect_rails():
-        if r["kind"] == "language" and "kannada" in r["title"].lower():
-            return r["rail"]
-    return None
+    """Locate a Kannada language rail from the hierarchy, else None."""
+    return vod.find_rail_by_kind("language", "kannada")
 
 
 def _ott_provider_rail(provider):
-    lw = provider.lower().replace(" ", "")
-    for r in vod.collect_rails():
-        if r["kind"] == "provider" and lw in r["title"].lower().replace(" ", ""):
-            return r["rail"]
-    return None
+    """Locate a provider rail from the hierarchy by name, else None."""
+    return vod.find_rail_by_kind("provider", provider)
 
 
 @Route.register
@@ -275,31 +265,33 @@ def ott_search(plugin):
 
 
 @Route.register
-def ott_browse(plugin, page):
-    """Fetch a browse-by page and list its rails (genre/language/provider)."""
-    data = vod.getBrowsePage(page)
-    items = vod._items(data)
-    if not items:
+def ott_browse(plugin):
+    """Browse all rails from the hierarchy (home page)."""
+    rails = vod.collect_rails()
+    if not rails:
         Script.notify(ADDON_ID, "Browse page unavailable (session may be required).")
         yield from _unavailable_item("Browse page unavailable - session/network required, retry.")
         return
-    for it in items:
-        title = it.get("title") or it.get("name") or ""
-        rid = it.get("id") or it.get("railId")
-        if not title or rid is None:
-            continue
+    for r in rails:
         yield Listitem.from_dict(**{
-            "label": title,
+            "label": r["title"],
             "art": _default_art(),
             "callback": Route.ref("/resources/lib/main:ott_rail"),
-            "params": {"rail": str(rid)},
+            "params": {"rail": r["rail"]},
         })
 
 
 @Route.register
 def ott_rail(plugin, rail):
     """List a rail's content (by id or a known section key)."""
-    items = vod.normalize_items(vod._items(vod.getRail(rail)))
+    rail_id = rail
+    if not rail_id.isdigit():
+        rail_id = vod.find_rail_by_kind("category", rail)
+        if not rail_id:
+            Script.notify(ADDON_ID, "Rail '%s' not found." % rail)
+            yield from _unavailable_item("Rail '%s' not found." % rail)
+            return
+    items = vod.normalize_items(vod._items(vod.getRail(rail_id)))
     if not items:
         Script.notify(ADDON_ID, "Rail empty/unavailable.")
         yield from _unavailable_item("Rail empty/unavailable - retry.")
