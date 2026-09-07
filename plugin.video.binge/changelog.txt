@@ -1,6 +1,11 @@
 Changelog
 =========
 
+v1.0.3 (2026-09-07)
+-------------------
+[fixed] Addon crashes now show the full error text on screen and save it to the addon profile folder (binge_error.txt), so no more guessing from "check the log"
+[fixed] Upload log / Send OTP / Login failures display the exact exception details on screen for instant diagnosis
+
 v1.0.2 (2026-09-07)
 -------------------
 [added] "Upload kodi.log for debugging" (Settings > Diagnostics and add-on menu) - posts kodi.log to paste.rs, shows the share link

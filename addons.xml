@@ -99,7 +99,7 @@
         </extension>
     </addon>
 
-    <addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.2" provider-name="Dinesh">
+    <addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.3" provider-name="Dinesh">
         <requires>
             <import addon="xbmc.python" version="3.0.0" />
             <import addon="script.module.codequick" version="1.0.2" />
@@ -117,6 +117,9 @@
             <license>MIT</license>
             <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
 <news>
+                [- 1.0.3 -]
+                [fixed] Addon crashes now show the full error text on screen and save it to the addon profile folder (binge_error.txt), so no more guessing from "check the log"
+                [fixed] Upload log / Send OTP / Login failures display the exact exception details on screen
                 [- 1.0.2 -]
                 [added] "Upload kodi.log for debugging": Settings > Diagnostics, and an entry in the add-on menu - posts kodi.log to paste.rs and shows the link to share
                 [added] Detailed BINGE log lines for login, channel list, channel detail, token service, OTT API and playback so errors read clearly in kodi.log
