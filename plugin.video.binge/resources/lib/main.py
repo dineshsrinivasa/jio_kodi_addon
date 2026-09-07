@@ -4,7 +4,7 @@ import traceback
 from urllib.parse import urlencode
 
 import xbmcgui
-from codequick import Route, Resolver, Listitem, Script
+from codequick import Route, Resolver, Listitem, Script, run
 from codequick.script import Settings
 from codequick.utils import keyboard
 
@@ -467,7 +467,3 @@ def uploadlog(plugin):
             "Tata Play Binge - Upload failed",
             "The log could not be uploaded (network/paste.rs may be blocked). "
             "Please screenshot this for the developer:\n\n" + tb)
-
-
-def run():
-    Script.run()

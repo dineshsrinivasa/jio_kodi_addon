@@ -1,6 +1,10 @@
 Changelog
 =========
 
+v1.0.5 (2026-09-07)
+-------------------
+[fixed] CRITICAL: "Script.run() AttributeError" - addon entry now calls codequick's run correctly (matched jiotv)
+
 v1.0.4 (2026-09-07)
 -------------------
 [fixed] CRITICAL: "No module named 'constants'" - the addon could not run any route/action before this fix. All imports now use correct package paths
