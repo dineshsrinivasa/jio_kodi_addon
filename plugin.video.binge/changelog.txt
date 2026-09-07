@@ -1,0 +1,14 @@
+Changelog
+=========
+
+v1.0.0 (2026-09-07)
+-------------------
+[added] Tata Play Binge addon - OTT login + live channels in Kodi
+[added] OTP login via registered mobile number (RMN) + subscriber ID (SID)
+[added] SID auto-detection from RMN
+[added] Full subscriber channel lineup (entitlement filtered)
+[added] Dedicated "Zee TV (via Binge)" section for all Zee network channels
+[added] Channel genres browsing
+[added] DASH + Widevine playback with per-channel ls_session license token
+[added] M3U playlist generation for PVR IPTV Simple Client
+[added] Persistent+encoded session storage, channel list caching, reload action

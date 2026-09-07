@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings version="1">
+	<section id="plugin.video.binge">
+		<category help="" id="account" label="32000">
+			<group id="1">
+				<setting help="" id="rmn" label="Registered mobile number (RMN)" type="string">
+					<level>0</level>
+					<default></default>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control format="string" type="edit">
+						<heading>Registered mobile number (RMN)</heading>
+					</control>
+				</setting>
+				<setting help="" id="sid" label="Subscriber ID (SID) - auto if blank" type="string">
+					<level>0</level>
+					<default></default>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control format="string" type="edit">
+						<heading>Subscriber ID (SID)</heading>
+					</control>
+				</setting>
+				<setting help="" id="sendotp" label="Send OTP" type="action">
+					<level>0</level>
+					<data>RunPlugin(plugin://plugin.video.binge/resources/lib/main/sendotp/)</data>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control format="action" type="button">
+						<close>true</close>
+					</control>
+				</setting>
+				<setting help="" id="otp" label="Enter OTP received on phone" type="string">
+					<level>0</level>
+					<default></default>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control format="string" type="edit">
+						<heading>Enter OTP received on phone</heading>
+					</control>
+				</setting>
+				<setting help="" id="dologin" label="Verify OTP and login" type="action">
+					<level>0</level>
+					<data>RunPlugin(plugin://plugin.video.binge/resources/lib/main/dologin/)</data>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control format="action" type="button">
+						<close>true</close>
+					</control>
+				</setting>
+				<setting help="" id="logout" label="Logout" type="action">
+					<level>0</level>
+					<data>RunPlugin(plugin://plugin.video.binge/resources/lib/main/logout/)</data>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control format="action" type="button">
+						<close>true</close>
+					</control>
+				</setting>
+			</group>
+		</category>
+		<category help="" id="playback" label="Playback">
+			<group id="1">
+				<setting help="" id="quality" label="Max stream quality" type="string">
+					<level>0</level>
+					<default>HD</default>
+					<constraints>
+						<options>
+							<option>SD</option>
+							<option>HD</option>
+							<option>Full HD</option>
+							<option>4K</option>
+						</options>
+					</constraints>
+					<control format="string" type="list">
+						<heading>Max stream quality</heading>
+					</control>
+				</setting>
+			</group>
+		</category>
+		<category help="" id="pvr" label="PVR">
+			<group id="1">
+				<setting help="" id="m3ugen" label="Generate playlist.m3u" type="action">
+					<level>0</level>
+					<data>RunPlugin(plugin://plugin.video.binge/resources/lib/main/m3ugen/)</data>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control format="action" type="button">
+						<close>true</close>
+					</control>
+				</setting>
+				<setting help="" id="reload" label="Reload channel list" type="action">
+					<level>0</level>
+					<data>RunPlugin(plugin://plugin.video.binge/resources/lib/main/reload/)</data>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control format="action" type="button">
+						<close>true</close>
+					</control>
+				</setting>
+			</group>
+		</category>
+	</section>
+</settings>

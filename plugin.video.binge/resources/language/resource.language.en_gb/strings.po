@@ -1,0 +1,70 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: plugin.video.binge\n"
+"Report-Msgid-Bugs-To: http://github.com/dineshsrinivasa/jio_kodi_addon\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: TataPlayBinge\n"
+
+msgctxt "#32000"
+msgid "Tata Play Binge"
+msgstr "Tata Play Binge"
+
+msgctxt "#32001"
+msgid "Zee TV (via Binge)"
+msgstr "Zee TV (via Binge)"
+
+msgctxt "#32002"
+msgid "All Channels"
+msgstr "All Channels"
+
+msgctxt "#32003"
+msgid "Genres"
+msgstr "Genres"
+
+msgctxt "#32004"
+msgid "Login"
+msgstr "Login"
+
+msgctxt "#32005"
+msgid "Logout"
+msgstr "Logout"
+
+msgctxt "#32006"
+msgid "Not logged in."
+msgstr "Not logged in."
+
+msgctxt "#32007"
+msgid "Login successful."
+msgstr "Login successful."
+
+msgctxt "#32008"
+msgid "Login failed."
+msgstr "Login failed."
+
+msgctxt "#32009"
+msgid "Enter registered mobile number"
+msgstr "Enter registered mobile number"
+
+msgctxt "#32010"
+msgid "Enter OTP"
+msgstr "Enter OTP"
+
+msgctxt "#32011"
+msgid "Logged out."
+msgstr "Logged out."
+
+msgctxt "#32012"
+msgid "No subscribed channels found. Ensure the mobile number/subscriber id are correct and the subscription includes channels."
+msgstr "No subscribed channels found. Ensure the mobile number/subscriber id are correct and the subscription includes channels."
+
+msgctxt "#32013"
+msgid "M3U playlist generated"
+msgstr "M3U playlist generated"
+
+msgctxt "#32014"
+msgid "Channel list updated"
+msgstr "Channel list updated"
