@@ -246,9 +246,10 @@ def login_otp(rmn, sid=None, otp=None):
     log("validateOTP: status=%s body=%s" % (getattr(resp, "status_code", "?"), _safe(data)))
     tok = (data.get("data") or {}).get("userAuthenticateToken")
     devtok = (data.get("data") or {}).get("deviceAuthenticateToken") or ""
+    first_login = (data.get("data") or {}).get("firstTimeLogin") is True
     if not tok:
         return (data.get("message") or "OTP validation failed") if data.get("message") else "OTP validation failed"
-    log("validateOTP: OK userToken(len=%s)" % len(tok))
+    log("validateOTP: OK userToken(len=%s) firstTimeLogin=%s" % (len(tok), first_login))
 
     # 2) fetch subscriber account details -> pick create vs update
     account = {}
@@ -265,40 +266,43 @@ def login_otp(rmn, sid=None, otp=None):
     except Exception:
         log_exc("subscriber details request")
         acc_data = {}
+    log("subscriber/details: status=%s body=%s" % (getattr(resp, "status_code", "?"), _safe(acc_data)))
     ads = ((acc_data.get("data") or {}).get("accountDetails") or [{}])
     account = ads[0] if isinstance(ads, list) and ads else {}
     dth_status = account.get("dthStatus") or ""
+    log("subscriber/details: dthStatus=%r subscriberId=%r bingeSubscriberId=%r firstTimeLogin=%s" %
+        (dth_status, account.get("subscriberId"), account.get("bingeSubscriberId"), first_login))
 
     # 3) create (new user) or update (existing) via the login endpoint
-    if not dth_status:
+    if first_login:
         login_url = constants.BINGE_CREATE_USER_URL
-        login_body = {
-            "dthStatus": "Non DTH User",
-            "subscriberId": rmn,
-            "login": "OTP",
-            "mobileNumber": rmn,
-            "isPastBingeUser": False,
-            "eulaChecked": True,
-            "packageId": "",
-        }
-    elif dth_status == "DTH Without Binge":
-        login_url = constants.BINGE_CREATE_USER_URL
-        login_body = {
-            "dthStatus": "DTH Without Binge",
-            "subscriberId": account.get("subscriberId") or "",
-            "login": "OTP",
-            "mobileNumber": rmn,
-            "baId": None,
-            "isPastBingeUser": False,
-            "eulaChecked": True,
-            "packageId": "",
-            "referenceId": None,
-        }
+        if dth_status == "DTH Without Binge":
+            login_body = {
+                "dthStatus": "DTH Without Binge",
+                "subscriberId": account.get("subscriberId") or rmn,
+                "login": "OTP",
+                "mobileNumber": rmn,
+                "baId": None,
+                "isPastBingeUser": False,
+                "eulaChecked": True,
+                "packageId": "",
+                "referenceId": None,
+            }
+        else:
+            login_body = {
+                "dthStatus": "Non DTH User",
+                "subscriberId": rmn,
+                "login": "OTP",
+                "mobileNumber": rmn,
+                "isPastBingeUser": False,
+                "eulaChecked": True,
+                "packageId": "",
+            }
     else:
         login_url = constants.BINGE_UPDATE_USER_URL
         login_body = {
-            "dthStatus": dth_status,
-            "subscriberId": account.get("subscriberId") or "",
+            "dthStatus": dth_status or "Non DTH User",
+            "subscriberId": account.get("subscriberId") or rmn,
             "bingeSubscriberId": account.get("bingeSubscriberId") or "",
             "baId": account.get("baId") or "",
             "login": "OTP",

@@ -1,6 +1,12 @@
 Changelog
 =========
 
+v1.0.8 (2026-09-07)
+-------------------
+[fixed] Login: already-registered accounts (validateOTP returns firstTimeLogin=false) now use "update existing user"
+        (api/v3/update/exist/user) instead of "create new user" - create returned HTTP 500 for existing non-DTH accounts
+[added] subscriber/details response now logged so the create-vs-update decision is visible
+
 v1.0.7 (2026-09-07)
 -------------------
 [fixed] Login rewritten for NON-DTH (Binge-only) accounts - the old web/SID flow (tm.tapi) refused RMN-only users (code 10005/1003)
