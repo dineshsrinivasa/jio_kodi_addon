@@ -18,6 +18,15 @@ def _default_art():
     return {"thumb": "", "icon": ICON, "fanart": ""}
 
 
+def _unavailable_item(msg):
+    """Yield a single explanatory item instead of an empty folder (avoids codequick 'No items found')."""
+    return [Listitem.from_dict(**{
+        "label": msg,
+        "art": _default_art(),
+        "callback": Route.ref("/resources/lib/main:ott_notice"),
+    })]
+
+
 # ------------------------------------------------------------------ root ---
 @Route.register
 def root(plugin):
@@ -231,6 +240,7 @@ def ott_kannada(plugin):
         items = vod.filter_items(vod.normalize_items(vod._items(vod.search("kannada"))), lang="kannada")
     if not items:
         Script.notify(ADDON_ID, "No Kannada content found (check login / network).")
+        yield from _unavailable_item("No Kannada content found - check login/network, retry.")
         return
     yield from _ott_items(plugin, items, seasons=True)
 
@@ -246,6 +256,7 @@ def ott_provider(plugin, provider):
         items = vod.filter_items(vod.normalize_items(vod._items(vod.search(provider))), provider=provider)
     if not items:
         Script.notify(ADDON_ID, "No %s content found (check login / network)." % provider)
+        yield from _unavailable_item("No %s content found - check login/network, retry." % provider)
         return
     yield from _ott_items(plugin, items, seasons=True)
 
@@ -258,6 +269,8 @@ def ott_search(plugin):
     items = vod.normalize_items(vod._items(vod.search(query)))
     if not items:
         Script.notify(ADDON_ID, "No OTT results (check login / network).")
+        yield from _unavailable_item("No OTT results for %r - check login/network." % query)
+        return
     yield from _ott_items(plugin, items, seasons=True)
 
 
@@ -268,6 +281,7 @@ def ott_browse(plugin, page):
     items = vod._items(data)
     if not items:
         Script.notify(ADDON_ID, "Browse page unavailable (session may be required).")
+        yield from _unavailable_item("Browse page unavailable - session/network required, retry.")
         return
     for it in items:
         title = it.get("title") or it.get("name") or ""
@@ -288,6 +302,7 @@ def ott_rail(plugin, rail):
     items = vod.normalize_items(vod._items(vod.getRail(rail)))
     if not items:
         Script.notify(ADDON_ID, "Rail empty/unavailable.")
+        yield from _unavailable_item("Rail empty/unavailable - retry.")
         return
     yield from _ott_items(plugin, items, seasons=True)
 
@@ -360,6 +375,10 @@ def ott_season(plugin, seasonId):
     else:
         # try series list for episodes of this season obj
         ep = vod.normalize_items(vod._items(vod.getSeasons(seasonId)))
+        if not ep:
+            Script.notify(ADDON_ID, "No episodes found for this title.")
+            yield from _unavailable_item("No episodes found for this title.")
+            return
         yield from _ott_items(plugin, ep, seasons=False)
 
 

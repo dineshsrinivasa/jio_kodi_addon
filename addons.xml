@@ -99,7 +99,7 @@
         </extension>
     </addon>
 
-    <addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.11" provider-name="Dinesh">
+    <addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.12" provider-name="Dinesh">
         <requires>
             <import addon="xbmc.python" version="3.0.0" />
             <import addon="script.module.codequick" version="1.0.2" />
@@ -117,6 +117,10 @@
             <license>MIT</license>
             <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
 <news>
+                [- 1.0.12 -]
+                [fixed] OTT browse/search: Binge APIs require the web-app device headers (anonymousid/deviceid/deviceToken/x-authenticated-userid etc.) - they are now sent on every request, fixing the homescreen "startsWith" server error and 404s; rail/page endpoint paths updated to the exact bundle routes
+                [fixed] Channel playback: channel detail now sends the full session auth (bearer + subscriber + profile headers) so kong no longer answers "Blocked"
+                [fixed] Empty OTT sections now show an explanatory item instead of a "No items found" error
                 [- 1.0.11 -]
                 [fixed] Channel list: single-request full-catalogue fetch (page size 1000) - Zee TV / All Channels were being killed by Kodi's addon timeout
                 [fixed] OTT menu crash: Route.ref() has no params kwarg in codequick - params now passed via Listitem from_dict

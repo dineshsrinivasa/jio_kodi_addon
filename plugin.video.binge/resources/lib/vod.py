@@ -6,11 +6,20 @@
 # Every call is guarded so a failure degrades gracefully instead of crashing the addon.
 import requests
 
+from codequick.storage import PersistentDict
+
 from resources.lib import utils
-from resources.lib.constants import BINGE_API_BASE
+from resources.lib.constants import BINGE_API_BASE, SESSION_KEY
 from codequick import Script
 
 TIMEOUT = 25
+
+
+def _bm_cred():
+    """Registered device credentials (anonymousid + deviceid) as used by the Binge web app."""
+    with PersistentDict(SESSION_KEY) as db:
+        cred = db.get("bm_device") or {}
+    return cred or {}
 
 
 def _session_headers(extra=None):
@@ -21,16 +30,39 @@ def _session_headers(extra=None):
         "platform": "BINGE_ANYWHERE",
         "locale": "IND",
         "devicetype": "WEB",
+        "deviceName": "Web",
+        "deviceType": "WEB",
+        "deviceid": "5a1098e62d9bd97cef26bc2a0b3c18b2",
+        "anonymousid": "E4A02CEDF3F94A21A658A09A19D06627",
+        "apiVersion": "v3",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     }
-    if session and session.get("accessToken"):
-        h["authorization"] = "bearer " + session["accessToken"]
+    cred = _bm_cred()
+    if cred.get("deviceId"):
+        h["deviceid"] = str(cred["deviceId"])
+        h["deviceId"] = str(cred["deviceId"])
+    if cred.get("anonymousId"):
+        h["anonymousid"] = str(cred["anonymousId"])
+        h["anonymousId"] = str(cred["anonymousId"])
+    if session:
+        if session.get("accessToken"):
+            h["authorization"] = "bearer " + session["accessToken"]
         if session.get("sid"):
             h["x-subscriber-id"] = str(session["sid"])
+            h["x-authenticated-userid"] = str(session["sid"])
+            h["subscriberId"] = str(session["sid"])
         if session.get("sName"):
             h["x-subscriber-name"] = str(session["sName"])
         if session.get("profileId"):
             h["profileid"] = str(session["profileId"])
+            h["profileId"] = str(session["profileId"])
+        if session.get("baId"):
+            h["baId"] = str(session["baId"])
+        if session.get("deviceToken"):
+            h["devicetoken"] = str(session["deviceToken"])
+            h["deviceToken"] = str(session["deviceToken"])
+        if session.get("dthStatus"):
+            h["dthStatus"] = str(session["dthStatus"])
     if extra:
         h.update(extra)
     return h
@@ -70,21 +102,22 @@ def _items(data):
     d = _data(data)
     if not d:
         return []
-    items = d.get("items") or d.get("contentList") or d.get("list") or d.get("content") or []
+    items = (d.get("items") or d.get("contentList") or d.get("list") or d.get("content")
+             or d.get("rails") or d.get("railList"))
     if isinstance(items, dict):
-        items = items.get("items") or items.get("list") or []
+        items = items.get("items") or items.get("list") or items.get("rails") or []
     return items or []
 
 
 def getBrowsePage(page):
     """Fetch a browse-by page config (rails: language/genre/provider/category)."""
-    return _get_logged("homescreen-client/pub/api/v1/page/{0}/BINGE_ANYWHERE".format(page))
+    return _get_logged("homescreen-client/pub/api/v1/page/{0}".format(page))
 
 
 def getRail(rail_id, limit=100):
     """Fetch rail content by rail id."""
-    return _get("homescreen-client/pub/api/v3/rail",
-                params={"id": rail_id, "limit": limit, "allowBingeRepositioning": "true"})
+    return _get("homescreen-client/api/v3/rail",
+                params={"id": rail_id, "limit": limit, "allowBingeRepositioning": "true", "rule": "VRPRIMERAILFILTER"})
 
 
 def getSeeAll(rail_id, offset=0, limit=100):
@@ -93,8 +126,13 @@ def getSeeAll(rail_id, offset=0, limit=100):
 
 
 def search(query, offset=0, limit=100):
-    return _get_logged("search-connector/binge/anywhere/search",
-                       params={"queryString": query, "limit": limit, "offset": offset})
+    for path in ("search-connector/binge/anywhere/search",
+                 "binge-media-search/pub/freemium/search/results",
+                 "search-connector/freemium/search/results"):
+        data = _get(path, params={"queryString": query, "limit": limit, "offset": offset})
+        if data and _data(data) is not None:
+            return data
+    return None
 
 
 def getSeasons(content_id):
@@ -107,7 +145,7 @@ def getContentInfo(content_id):
 
 def getContentPackage(offset=0, maxn=100):
     """Subscribed partner OTT apps (like Jio-Hotstar style provider list)."""
-    d = _data(_get("homescreen-client/pub/api/v1/page/HOME/BINGE_ANYWHERE"))
+    d = _data(_get("homescreen-client/pub/api/v1/page/HOME"))
     return d
 
 
@@ -126,7 +164,7 @@ def collect_rails(pages=("HOME", "BROWSE", "LANGUAGE")):
                  "chaupal", "namma", "playflix", "manorama", "waves", "stage"}
     found = {}
     for page in pages:
-        data = _get_logged("homescreen-client/pub/api/v1/page/{0}/BINGE_ANYWHERE".format(page))
+        data = _get_logged("homescreen-client/pub/api/v1/page/{0}".format(page))
         for it in _items(data):
             title = (it.get("title") or it.get("name") or "").strip()
             rid = it.get("id") or it.get("railId")

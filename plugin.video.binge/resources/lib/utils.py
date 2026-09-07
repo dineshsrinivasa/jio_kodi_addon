@@ -334,6 +334,8 @@ def login_otp(rmn, sid=None, otp=None):
 
     session = _bm_session_from(ldata, rmn)
     if session and session.get("accessToken"):
+        if devtok:
+            session["deviceToken"] = str(devtok)
         saveSession(session)
         return None
     msg = ldata.get("message") or (acc_data.get("message") if acc_data else None) or "Login failed"
@@ -370,7 +372,8 @@ def _bm_session_from(data, rmn):
     if not isinstance(entitlements, list):
         entitlements = [entitlements]
     profile = _deep(data, "profileId")
-    return {
+    ba_id = _deep(data, "baId")
+    session = {
         "accessToken": token,
         "entitlements": entitlements,
         "sid": _deep(data, "sid", "subscriberId"),
@@ -380,6 +383,9 @@ def _bm_session_from(data, rmn):
         "rmn": rmn,
         "anonymousId": _deep(data, "anonymousId"),
     }
+    if ba_id is not None and ba_id != "":
+        session["baId"] = str(ba_id)
+    return session
 
 
 # ------------------------------------------------------------ channel list ---
@@ -468,9 +474,25 @@ def getChannelById(cid):
 
 # ------------------------------------------------------------------ license ---
 def fetchChannelDetail(cid):
+    session = getSession()
+    headers = get_headers()
+    if session and session.get("accessToken"):
+        headers["authorization"] = "bearer " + session["accessToken"]
+    if session and session.get("sid"):
+        headers["x-subscriber-id"] = str(session["sid"])
+    if session and session.get("sName"):
+        headers["x-subscriber-name"] = str(session["sName"])
+    if session and session.get("profileId"):
+        headers["profileid"] = str(session["profileId"])
+    with PersistentDict(constants.SESSION_KEY) as db:
+        cred = db.get("bm_device") or {}
+    if cred.get("deviceId"):
+        headers["deviceid"] = str(cred["deviceId"])
+    if cred.get("anonymousId"):
+        headers["anonymousid"] = str(cred["anonymousId"])
     try:
         resp = urlquick.get(constants.CHANNEL_DETAIL_URL.format(cid=cid),
-                            headers=get_headers(),
+                            headers=headers,
                             verify=False, max_age=-1, raise_for_status=False, timeout=30)
         data = resp.json()
         if data.get("code") == 0:

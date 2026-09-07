@@ -1,6 +1,20 @@
 Changelog
 ========
 
+v1.0.12 (2026-09-07)
+--------------------
+[fixed] OTT browse/search now work: the Binge web app sends device headers (anonymousid, deviceid,
+        deviceToken, deviceType, deviceName, apiVersion, x-authenticated-userid, subscriberId, baId)
+        on every API call - these are now included, fixing the homescreen "Cannot read properties of
+        undefined (reading 'startsWith')" server error and the search 404s
+[fixed] Homescreen/rail endpoint paths corrected to the exact bundle routes (page/{page} without the
+        /BINGE_ANYWHERE suffix, rail via homescreen-client/api/v3/rail with rule=VRPRIMERAILFILTER)
+[fixed] Live channel detail now sends the full session auth (bearer accessToken, x-subscriber-id,
+        x-subscriber-name, profileid, anonymousid, deviceid) so kong no longer answers "Blocked"
+[fixed] Empty OTT sections (search / browse / rails / seasons) show an explanatory item instead of
+        raising codequick's "No items found" RuntimeError
+[added] session now stores deviceToken + baId from the login response for richer headers
+
 v1.0.11 (2026-09-07)
 --------------------
 [fixed] Channel list: fetch now pulls the full ~800-channel catalogue in a single request (page size 1000)
