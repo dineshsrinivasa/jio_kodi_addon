@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addons>
     <addon id="repository.dineshrepo" version="1.0.0" name="Dinesh JioTV Repository" provider-name="Dinesh">
         <requires>
@@ -91,6 +91,42 @@
                 [fixed] cleaned up debug prints
             </news>
             <disclaimer>This plugin is not officially commissioned/supported by Jio.</disclaimer>
+            <assets>
+                <icon>resources/icon.png</icon>
+                <fanart>resources/icon.png</fanart>
+            </assets>
+            <reuselanguageinvoker>true</reuselanguageinvoker>
+        </extension>
+    </addon>
+
+    <addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.0" provider-name="Dinesh">
+        <requires>
+            <import addon="xbmc.python" version="3.0.0" />
+            <import addon="script.module.codequick" version="1.0.2" />
+            <import addon="inputstream.adaptive" minversion="2.6.6" />
+            <import addon="script.module.requests" version="2.27.1" />
+        </requires>
+        <extension point="xbmc.python.pluginsource" library="addon.py">
+            <provides>video</provides>
+        </extension>
+        <extension point="xbmc.addon.metadata">
+            <summary lang="en_GB">Stream Tata Play Binge (OTT + Live) channels on Kodi</summary>
+            <description lang="en_GB">Watch your Tata Play Binge subscribed channels (incl. Zee TV networks) and OTT entitlements directly in Kodi. Log in with your registered mobile number (RMN) + subscriber ID via OTP.</description>
+            <language>en</language>
+            <platform>all</platform>
+            <license>MIT</license>
+            <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
+<news>
+                [- 1.0.0 -]
+                [added] Tata Play Binge addon
+                [added] OTP login via registered mobile number + subscriber ID
+                [added] Live channels from Binge lineup (entitlement filtered)
+                [added] Dedicated Zee TV section (all Zee network channels via Binge)
+                [added] DASH/Widevine playback with per-channel ls_session token
+                [added] OTT catalogue browse: search / browse-by / movies / TV shows / seasons & episodes (playback of partner OTT titles requires partner DRM APIs, so those titles show an info notice; live channels play fully)
+                [added] M3U playlist generation for PVR IPTV Simple
+            </news>
+            <disclaimer>This addon is not officially commissioned/supported by Tata Play.</disclaimer>
             <assets>
                 <icon>resources/icon.png</icon>
                 <fanart>resources/icon.png</fanart>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.binge" name="Tata Play Binge" version="1.0.0" provider-name="Dinesh">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0" />
+        <import addon="script.module.codequick" version="1.0.2" />
+        <import addon="inputstream.adaptive" minversion="2.6.6" />
+        <import addon="script.module.requests" version="2.27.1" />
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="addon.py">
+        <provides>video</provides>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en_GB">Stream Tata Play Binge (OTT + Live) channels on Kodi</summary>
+        <description lang="en_GB">Watch your Tata Play Binge subscribed channels (incl. Zee TV networks) and OTT entitlements directly in Kodi. Log in with your registered mobile number (RMN) + subscriber ID via OTP.</description>
+        <language>en</language>
+        <platform>all</platform>
+        <license>MIT</license>
+        <source>https://github.com/dineshsrinivasa/jio_kodi_addon</source>
+        <news>
+            [- 1.0.0 -]
+            [added] Tata Play Binge addon
+            [added] OTP login via registered mobile number + subscriber ID
+            [added] Live channels from Binge lineup (entitlement filtered)
+            [added] Dedicated Zee TV section (all Zee network channels via Binge)
+            [added] DASH/Widevine playback with per-channel ls_session token
+            [added] M3U playlist generation for PVR IPTV Simple
+        </news>
+        <disclaimer>This addon is not officially commissioned/supported by Tata Play. It relies on reverse-engineered public APIs of the Tata Play Binge OTT service. You need an active Tata Play Binge subscription.</disclaimer>
+        <assets>
+            <icon>resources/icon.png</icon>
+            <fanart>resources/icon.png</fanart>
+            <screenshot>resources/icon.png</screenshot>
+            <screenshot>resources/icon.png</screenshot>
+            <screenshot>resources/icon.png</screenshot>
+        </assets>
+        <reuselanguageinvoker>true</reuselanguageinvoker>
+    </extension>
+</addon>
