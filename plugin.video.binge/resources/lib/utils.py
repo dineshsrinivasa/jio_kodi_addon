@@ -10,7 +10,7 @@ from codequick import Script
 from codequick.script import Settings
 from codequick.storage import PersistentDict
 
-import constants
+from resources.lib import constants
 
 
 def log(msg, lvl=Script.INFO):

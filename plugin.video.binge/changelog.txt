@@ -1,6 +1,10 @@
 Changelog
 =========
 
+v1.0.4 (2026-09-07)
+-------------------
+[fixed] CRITICAL: "No module named 'constants'" - the addon could not run any route/action before this fix. All imports now use correct package paths
+
 v1.0.3 (2026-09-07)
 -------------------
 [fixed] Addon crashes now show the full error text on screen and save it to the addon profile folder (binge_error.txt), so no more guessing from "check the log"
