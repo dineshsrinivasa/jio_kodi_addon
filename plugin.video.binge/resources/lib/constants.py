@@ -48,8 +48,11 @@ REFERER           = "https://watch.tataplay.com/"
 M3U_PATH          = "special://profile/addon_data/{0}/playlist.m3u".format(ADDON_ID)
 M3U_CHANNEL       = '#EXTINF:-1 tvg-id="{1}" tvg-logo="{2}" group-title="{3}",{0}\n{4}'
 
-# Number of channels to request per page while paginating the channel list
-CHANNEL_PAGE_SIZE = 100
+# Number of channels to request per page while paginating the channel list.
+# The catalogue holds ~800 live channels; a single 1000-page fetch returns them in one
+# request so the addon stays inside Kodi's addon-execution budget (a 8x100 pagination
+# was being killed by Kodi's 5s "script didn't stop" guard).
+CHANNEL_PAGE_SIZE = 1000
 
 # Session / cache keys
 SESSION_KEY = 'session'

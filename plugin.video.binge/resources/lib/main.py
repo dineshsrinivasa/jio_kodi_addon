@@ -161,7 +161,24 @@ def _ott_img(item):
 
 @Route.register
 def ott(plugin):
-    """OTT (series/movies) browse menu: vendors, search, and curated browse."""
+    """OTT (series/movies) browse menu: Kannada-first + partner + search."""
+    yield Listitem.from_dict(**{
+        "label": "Kannada (Movies + Series)",
+        "art": _default_art(),
+        "callback": Route.ref("/resources/lib/main:ott_kannada"),
+    })
+    yield Listitem.from_dict(**{
+        "label": "Zee5 (Movies + Series)",
+        "art": _default_art(),
+        "callback": Route.ref("/resources/lib/main:ott_provider"),
+        "params": {"provider": "ZEE5"},
+    })
+    yield Listitem.from_dict(**{
+        "label": "JioHotstar (Movies + Series)",
+        "art": _default_art(),
+        "callback": Route.ref("/resources/lib/main:ott_provider"),
+        "params": {"provider": "JioHotstar"},
+    })
     yield Listitem.from_dict(**{
         "label": "Search OTT  /  Series",
         "art": _default_art(),
@@ -170,18 +187,67 @@ def ott(plugin):
     yield Listitem.from_dict(**{
         "label": "Browse-by (Genres / Languages / Providers)",
         "art": _default_art(),
-        "callback": Route.ref("/resources/lib/main:ott_browse", params={"page": "BROWSE"}),
+        "callback": Route.ref("/resources/lib/main:ott_browse"),
+        "params": {"page": "BROWSE"},
     })
     yield Listitem.from_dict(**{
-        "label": "Movies",
+        "label": "Movies (Top Picks)",
         "art": _default_art(),
-        "callback": Route.ref("/resources/lib/main:ott_rail", params={"rail": "MOVIES"}),
+        "callback": Route.ref("/resources/lib/main:ott_rail"),
+        "params": {"rail": "MOVIES"},
     })
     yield Listitem.from_dict(**{
-        "label": "TV Shows",
+        "label": "TV Shows (Top Picks)",
         "art": _default_art(),
-        "callback": Route.ref("/resources/lib/main:ott_rail", params={"rail": "TV_SHOWS"}),
+        "callback": Route.ref("/resources/lib/main:ott_rail"),
+        "params": {"rail": "TV_SHOWS"},
     })
+
+
+def _ott_kannada_rail():
+    """Locate a Kannada language rail (server-curated), else None."""
+    for r in vod.collect_rails():
+        if r["kind"] == "language" and "kannada" in r["title"].lower():
+            return r["rail"]
+    return None
+
+
+def _ott_provider_rail(provider):
+    lw = provider.lower().replace(" ", "")
+    for r in vod.collect_rails():
+        if r["kind"] == "provider" and lw in r["title"].lower().replace(" ", ""):
+            return r["rail"]
+    return None
+
+
+@Route.register
+def ott_kannada(plugin):
+    """Kannada-only on-demand content (movies + series)."""
+    items = []
+    rail = _ott_kannada_rail()
+    if rail:
+        items = vod.normalize_items(vod._items(vod.getRail(rail)))
+    if not items:
+        items = vod.filter_items(vod.normalize_items(vod._items(vod.search("kannada"))), lang="kannada")
+    if not items:
+        Script.notify(ADDON_ID, "No Kannada content found (check login / network).")
+        return
+    yield from _ott_items(plugin, items, seasons=True)
+
+
+@Route.register
+def ott_provider(plugin, provider):
+    """Content from a single partner app (e.g. ZEE5, JioHotstar)."""
+    items = []
+    rail = _ott_provider_rail(provider)
+    if rail:
+        items = vod.normalize_items(vod._items(vod.getRail(rail)))
+    if not items:
+        items = vod.filter_items(vod.normalize_items(vod._items(vod.search(provider))), provider=provider)
+    if not items:
+        Script.notify(ADDON_ID, "No %s content found (check login / network)." % provider)
+        return
+    yield from _ott_items(plugin, items, seasons=True)
 
 
 @Route.register
@@ -211,7 +277,8 @@ def ott_browse(plugin, page):
         yield Listitem.from_dict(**{
             "label": title,
             "art": _default_art(),
-            "callback": Route.ref("/resources/lib/main:ott_rail", params={"rail": str(rid)}),
+            "callback": Route.ref("/resources/lib/main:ott_rail"),
+            "params": {"rail": str(rid)},
         })
 
 
@@ -241,11 +308,11 @@ def _ott_items(plugin, items, seasons=False):
         if it.get("provider"):
             li["info"]["studio"] = it["provider"]
         if seasons:
-            li["callback"] = Route.ref("/resources/lib/main:ott_item",
-                                       params={"contentId": cid})
+            li["callback"] = Route.ref("/resources/lib/main:ott_item")
+            li["params"] = {"contentId": cid}
         else:
-            li["callback"] = Route.ref("/resources/lib/main:ott_notice",
-                                       params={"title": li["label"]})
+            li["callback"] = Route.ref("/resources/lib/main:ott_notice")
+            li["params"] = {"title": li["label"]}
         yield Listitem.from_dict(**li)
 
 
@@ -280,8 +347,8 @@ def ott_item(plugin, contentId):
         yield Listitem.from_dict(**{
             "label": title,
             "art": _default_art(),
-            "callback": Route.ref("/resources/lib/main:ott_season",
-                                  params={"seasonId": str(sid)}),
+            "callback": Route.ref("/resources/lib/main:ott_season"),
+            "params": {"seasonId": str(sid)},
         })
 
 

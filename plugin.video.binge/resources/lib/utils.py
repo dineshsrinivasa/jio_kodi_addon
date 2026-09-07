@@ -391,7 +391,7 @@ def _rawChannels():
             resp = urlquick.get(constants.CHANNELS_URL,
                                 params={"limit": constants.CHANNEL_PAGE_SIZE, "offset": offset},
                                 headers=get_headers(),
-                                verify=False, max_age=-1, raise_for_status=False)
+                                verify=False, max_age=-1, raise_for_status=False, timeout=30)
             data = resp.json().get("data") or {}
             items = data.get("list") or data.get("channels") or []
             total = int(data.get("total") or 0)
@@ -471,7 +471,7 @@ def fetchChannelDetail(cid):
     try:
         resp = urlquick.get(constants.CHANNEL_DETAIL_URL.format(cid=cid),
                             headers=get_headers(),
-                            verify=False, max_age=-1, raise_for_status=False)
+                            verify=False, max_age=-1, raise_for_status=False, timeout=30)
         data = resp.json()
         if data.get("code") == 0:
             d = data.get("data") or {}

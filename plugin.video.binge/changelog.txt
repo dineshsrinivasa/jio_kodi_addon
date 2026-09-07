@@ -1,6 +1,18 @@
 Changelog
 ========
 
+v1.0.11 (2026-09-07)
+--------------------
+[fixed] Channel list: fetch now pulls the full ~800-channel catalogue in a single request (page size 1000)
+        instead of 8 slow pages - the Zee TV / All Channels menus previously exceeded Kodi's addon-execution
+        budget and were killed (script didn't stop in 5 seconds)
+[fixed] OTT menu no longer crashes: Route.ref() has no params argument in codequick - params are passed via
+        Listitem.from_dict(**{"params": {...}}) - fixed ott_browse/ott_rail/ott_item/ott_season call sites
+[added] OTT menu restructured Kannada-first: dedicated "Kannada (Movies + Series)" section, plus Zee5 and
+        JioHotstar sections, next to Search / Browse-by / Top Picks
+[added] Kodi house-style note: partner OTT playback needs each partner's proprietary DRM API (JioHotstar
+        deep-links out to the app), so titles remain browse-only for now
+
 v1.0.10 (2026-09-07)
 --------------------
 [fixed] Login: the successful login response carries the session under "userAuthenticateToken" (not accessToken),
